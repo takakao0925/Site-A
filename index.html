@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CXC Studio — Design That Moves Business Forward.</title>
+<meta name="description" content="CXC Studio turns ideas, insights, and business goals into purposeful digital experiences that connect with people and create lasting value." />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link href="https://cdn.jsdelivr.net/npm/@fontsource-variable/mona-sans@5/index.css" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<!--
+THESIS: Refuses the case-study-grid agency default. Proves capability by
+showing the seam where design and engineering fuse, not by showing finished
+work it structurally cannot show.
+OWN-WORLD: Near-black ground; the logo's teal-to-indigo gradient as the one
+saturated material, rendered as a real 3D ribbon (lemniscate tube) with
+glass/metal light response. Bold condensed grotesk display, technical
+letter-spaced labels for secondary text.
+STORY: A visitor recognizes in one second this isn't a portfolio grid — the
+live 3D object itself, built from the brand mark's own infinity path, is the
+proof of technical and design craft at once.
+FIRST VIEWPORT: Quiet nav, thin logo left. The ribbon dominates center-right,
+pointer-reactive. Headline left-aligned at mid-viewport scale, one CTA below.
+No client-logo strip — none exist to show honestly.
+FORM: Candidate 1 of grounded list (user-pinned: logo infinity mark as living
+3D object), pinned decision over rolled assigned index 7. Seed eee3bd49.
+Weighed vs 6 dealt challengers (ANSI BBS terminal, nixie-tube counter,
+curved-crease paper fold, ceramic glaze kiln shelf, Stenberg constructivist
+poster, Riley moiré gallery) on audience identification and product clarity;
+none beat the pin for this surface. Nixie counter's "numbers you can trust"
+register flagged for the Work page's anonymized-metrics section later.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the
+finish review, the verdict, and DESIGN.md.
+-->
+<nav class="nav">
+  <svg style="display:none">
+    <filter id="glass-distortion">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008 0.008" numOctaves="2" seed="7" result="noise" />
+      <feGaussianBlur in="noise" stdDeviation="2" result="blurred" />
+      <feDisplacementMap in="SourceGraphic" in2="blurred" scale="40" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+  <div class="nav__capsule">
+    <div class="glass-effect" aria-hidden="true"></div>
+    <div class="glass-shine" aria-hidden="true"></div>
+    <div class="glass-tint" aria-hidden="true"></div>
+    <a href="#top" class="nav__logo">
+      <img src="img/logo_print_horizon-white.png" alt="CXC Studio" id="nav-logo-img" />
+    </a>
+    <div class="nav__links">
+      <a href="about.html" class="nav__link">About</a>
+      <a href="work.html" class="nav__link">Work</a>
+      <button type="button" class="nav__lang" id="lang-toggle" aria-label="Switch language" data-lang="en">
+        <span class="nav__lang-option nav__lang-option--active" data-value="en">En</span>
+        <span class="nav__lang-divider">/</span>
+        <span class="nav__lang-option" data-value="zh">中</span>
+      </button>
+      <a href="#contact" class="nav__cta">Get in Touch</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero" id="top">
+  <div class="hero__vignette" aria-hidden="true"></div>
+  <div class="hero__glow" aria-hidden="true"></div>
+  <div class="hero__content hero__content--split">
+    <h1 class="sr-only">Design That Moves Business Forward.</h1>
+    <div class="hero__headline-wrap" id="hero-headline-wrap">
+      <div class="hero__headline-visual hero__baked" aria-hidden="true">
+        <span class="hero__headline-line">Design That</span>
+        <span class="hero__headline-line">Moves</span>
+        <span class="hero__headline-line">Business</span>
+        <span class="hero__headline-line">Forward.</span>
+      </div>
+      <canvas id="hero-glass-canvas" class="hero__glass-canvas" aria-hidden="true"></canvas>
+    </div>
+    <p class="hero__sub">We turn ideas, insights, and business goals into purposeful digital experiences that connect with people and create lasting value.</p>
+  </div>
+</section>
+
+<section class="credibility" id="credibility" data-reveal>
+  <canvas class="credibility__map" id="credibility-map" aria-hidden="true"></canvas>
+  <div class="credibility__content">
+    <h2 class="credibility__heading">Numbers Tell the Story</h2>
+    <div class="numbers-grid">
+      <div class="numbers-card">
+        <span class="numbers-card__value">81%</span>
+        <span class="numbers-card__label">Repeat Client Rate</span>
+      </div>
+      <div class="numbers-card">
+        <span class="numbers-card__value">280+</span>
+        <span class="numbers-card__label">Projects Delivered</span>
+      </div>
+      <div class="numbers-card">
+        <span class="numbers-card__value">3</span>
+        <span class="numbers-card__label">Markets Served</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="services" id="services" data-reveal>
+  <div class="services__sphere services__sphere--wire" aria-hidden="true"></div>
+  <div class="services__sphere services__sphere--color" aria-hidden="true"></div>
+  <div class="section-inner">
+    <h2 class="section-heading">What we do</h2>
+    <a href="about.html" class="services__more">More about us <span aria-hidden="true">→</span></a>
+    <div class="service-grid">
+      <div class="service-card">
+        <span class="service-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="15" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5" /><line x1="6" y1="19" x2="13" y2="19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><rect x="17" y="8" width="6" height="12" rx="1.2" stroke="currentColor" stroke-width="1.5" /></svg>
+        </span>
+        <h3 class="service-card__title">Web &amp; Mobile Development</h3>
+        <p class="service-card__desc">Craft beautiful, user-friendly apps and websites that drive results.</p>
+      </div>
+      <div class="service-card">
+        <span class="service-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.5" /><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7M18.4 18.4l-1.7-1.7M7.3 7.3L5.6 5.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+        </span>
+        <h3 class="service-card__title">Custom Software Development</h3>
+        <p class="service-card__desc">Build tailored solutions to automate tasks and streamline your business.</p>
+      </div>
+      <div class="service-card">
+        <span class="service-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 20l4.2-1.2L19 8a2 2 0 0 0 0-2.8l-.2-.2a2 2 0 0 0-2.8 0L5.2 15.8 4 20z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /><path d="M13 6.5l3.5 3.5" stroke="currentColor" stroke-width="1.5" /></svg>
+        </span>
+        <h3 class="service-card__title">UX/UI Design</h3>
+        <p class="service-card__desc">Create intuitive and engaging interfaces that delight users and boost conversions.</p>
+      </div>
+      <div class="service-card">
+        <span class="service-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.5" /><line x1="15.3" y1="15.3" x2="21" y2="21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+        </span>
+        <h3 class="service-card__title">UX Research &amp; Audit</h3>
+        <p class="service-card__desc">Uncover user needs and optimize your digital experience for maximum impact.</p>
+      </div>
+      <div class="service-card">
+        <span class="service-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M3 21h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><rect x="5" y="14" width="3" height="7" stroke="currentColor" stroke-width="1.5" /><rect x="11" y="10" width="3" height="11" stroke="currentColor" stroke-width="1.5" /><rect x="17" y="5" width="3" height="16" stroke="currentColor" stroke-width="1.5" /></svg>
+        </span>
+        <h3 class="service-card__title">Technical SEO Optimisation</h3>
+        <p class="service-card__desc">Improve your website's search ranking and attract organic traffic.</p>
+      </div>
+      <div class="service-card">
+        <span class="service-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="1.5" stroke="currentColor" stroke-width="1.5" /><line x1="8" y1="8" x2="16" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><line x1="8" y1="16" x2="13" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
+        </span>
+        <h3 class="service-card__title">Content Management</h3>
+        <p class="service-card__desc">Empower your team to easily create, edit, and publish engaging content.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="capabilities" id="capabilities" data-reveal>
+  <div class="expertise__inner">
+    <div class="expertise__intro">
+      <h2 class="expertise__heading">Expertise</h2>
+      <p class="expertise__lead">From bold ideas to refined digital experiences, see how we turn business challenges into purposeful design.</p>
+    </div>
+    <div class="expertise__rows">
+      <div class="expertise__row">
+        <div class="expertise__image expertise__image--video" aria-hidden="true">
+          <video class="expertise__video" src="video/Vertical-blur.mp4" autoplay muted loop playsinline></video>
+        </div>
+        <div class="expertise__content">
+          <div class="expertise__meta">
+            <h3 class="expertise__title">Product Identity</h3>
+            <div class="expertise__tags">
+              <span class="expertise__tag">Branding</span>
+              <span class="expertise__tag">Design System</span>
+              <span class="expertise__tag">Web/App Development</span>
+            </div>
+          </div>
+          <p class="expertise__desc">Identity is more than a mark. We turn it into a living system, carried consistently from logo to interface, across web and app, so every touchpoint feels like the same promise kept.</p>
+          <a href="work.html" class="expertise__link">View <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+      <div class="expertise__row expertise__row--reverse">
+        <div class="expertise__content">
+          <div class="expertise__meta">
+            <h3 class="expertise__title">Product Operations</h3>
+            <div class="expertise__tags">
+              <span class="expertise__tag">CMS</span>
+              <span class="expertise__tag">Platform Integrations</span>
+              <span class="expertise__tag">Admin Dashboard</span>
+              <span class="expertise__tag">Automation</span>
+              <span class="expertise__tag">Data Visualization</span>
+            </div>
+          </div>
+          <p class="expertise__desc">A product is only as strong as what runs behind it. We build the CMS, integrations, and automation that keep teams moving, turning daily operations into a system that scales.</p>
+          <a href="work.html" class="expertise__link">View <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="expertise__image expertise__image--video" aria-hidden="true">
+          <video class="expertise__video" src="video/CMS-demo.mp4" autoplay muted loop playsinline></video>
+        </div>
+      </div>
+      <div class="expertise__row">
+        <div class="expertise__image expertise__image--video" aria-hidden="true">
+          <video class="expertise__video" src="video/Game-blur.mp4" autoplay muted loop playsinline></video>
+        </div>
+        <div class="expertise__content">
+          <div class="expertise__meta">
+            <h3 class="expertise__title">Global Engagement</h3>
+            <div class="expertise__tags">
+              <span class="expertise__tag">Gaming</span>
+              <span class="expertise__tag">Global Markets</span>
+              <span class="expertise__tag">Artificial Intelligence</span>
+              <span class="expertise__tag">Payment Integration</span>
+            </div>
+          </div>
+          <p class="expertise__desc">Growth isn't just about reaching new markets, it's about keeping people there. We build the payment, localization, and experience layers that turn global reach into real engagement.</p>
+          <a href="work.html" class="expertise__link">View <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="trust" id="trust" data-reveal>
+  <div class="testimonials__inner">
+    <div class="testimonials__laurels">
+      <div class="testimonials__laurel">
+        <img src="img/laurel-left.svg" class="testimonials__laurel-leaf testimonials__laurel-leaf--left" alt="" aria-hidden="true" />
+        <img src="img/laurel-right.svg" class="testimonials__laurel-leaf testimonials__laurel-leaf--right" alt="" aria-hidden="true" />
+        <div class="testimonials__laurel-text">
+          <span class="testimonials__laurel-score">100%</span>
+          <span class="testimonials__laurel-label">On-time Delivery<br />Rate</span>
+        </div>
+      </div>
+      <div class="testimonials__laurel">
+        <img src="img/laurel-left.svg" class="testimonials__laurel-leaf testimonials__laurel-leaf--left" alt="" aria-hidden="true" />
+        <img src="img/laurel-right.svg" class="testimonials__laurel-leaf testimonials__laurel-leaf--right" alt="" aria-hidden="true" />
+        <div class="testimonials__laurel-text">
+          <span class="testimonials__laurel-score">4.8/5</span>
+          <span class="testimonials__laurel-label">Client Satisfaction</span>
+        </div>
+      </div>
+      <div class="testimonials__laurel">
+        <img src="img/laurel-left.svg" class="testimonials__laurel-leaf testimonials__laurel-leaf--left" alt="" aria-hidden="true" />
+        <img src="img/laurel-right.svg" class="testimonials__laurel-leaf testimonials__laurel-leaf--right" alt="" aria-hidden="true" />
+        <div class="testimonials__laurel-text">
+          <span class="testimonials__laurel-score">76%</span>
+          <span class="testimonials__laurel-label">Long-term Client Ratio</span>
+        </div>
+      </div>
+    </div>
+    <div class="testimonials__marquee" aria-hidden="true">
+      <div class="testimonials__track">
+        <div class="testimonials__set">
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>The CXC Studio team took the time to actually understand our problem instead of just following instructions. That made all the difference.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>Working with CXC Studio feels collaborative, not transactional. They think alongside us, not just for us.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>What stood out about CXC Studio was how invested the team felt in our success, not just in finishing the project.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio feels less like a vendor and more like an extension of our own team. They ask the right questions, understand what we actually need, and just get it done.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio has been a dependable partner from day one. They communicate clearly and always follow through.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>Even when our brief was vague, the CXC Studio team figured out what we needed and ran with it.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio's team doesn't just execute, they help us think through the problem first. That's rare.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio treats our goals like their own. That mindset shift changed how we work together.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>The CXC Studio team is proactive, sharp, and easy to trust with ambiguous problems.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+        </div>
+        <div class="testimonials__set">
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>The CXC Studio team took the time to actually understand our problem instead of just following instructions. That made all the difference.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>Working with CXC Studio feels collaborative, not transactional. They think alongside us, not just for us.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>What stood out about CXC Studio was how invested the team felt in our success, not just in finishing the project.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio feels less like a vendor and more like an extension of our own team. They ask the right questions, understand what we actually need, and just get it done.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio has been a dependable partner from day one. They communicate clearly and always follow through.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>Even when our brief was vague, the CXC Studio team figured out what we needed and ran with it.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio's team doesn't just execute, they help us think through the problem first. That's rare.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio treats our goals like their own. That mindset shift changed how we work together.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>The CXC Studio team is proactive, sharp, and easy to trust with ambiguous problems.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="contact" id="contact" data-reveal>
+  <iframe class="contact__earth" src="vendor/earth-bg/index.html" title="Decorative animated globe" aria-hidden="true" loading="lazy"></iframe>
+  <div class="section-inner contact__inner">
+    <h2 class="contact__heading">Your Next Big Idea Starts Here.</h2>
+    <p class="contact__lead">Have a project in mind?<br />Let's turn your next idea into an experience that makes an impact.</p>
+    <div class="contact__actions">
+      <a href="mailto:hello@cxcstudio.com" class="contact__cta">Let's Talk <span aria-hidden="true">→</span></a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="footer__inner">
+    <img src="img/logo_print_horizon-white.png" alt="CXC Studio" class="footer__logo" />
+    <nav class="footer__links">
+      <a href="about.html">About</a>
+      <a href="work.html">Work</a>
+      <a href="#contact">Get in Touch</a>
+    </nav>
+    <p class="footer__copy">© 2026 CXC Studio.</p>
+  </div>
+</footer>
+
+<script src="main.js" defer></script>
+</body>
+</html>

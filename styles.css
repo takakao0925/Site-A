@@ -1,0 +1,1169 @@
+:root {
+  --bg: #05070c;
+  --bg-elevated: #0c1119;
+  --teal: #5fcbe8;
+  --blue: #4083c4;
+  --indigo: #3f58a7;
+  --text: #f4f6fa;
+  --text-dim: #97a3b8;
+  --text-faint: #7c8698;
+  --font-display: 'Mona Sans Variable', system-ui, -apple-system, sans-serif;
+  --font-body: 'Mona Sans Variable', system-ui, -apple-system, sans-serif;
+  --gradient-brand: linear-gradient(100deg, var(--teal) 0%, var(--blue) 55%, var(--indigo) 100%);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── Nav ─────────────────────────────────────────────────────────────── */
+
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px clamp(24px, 5vw, 64px);
+  isolation: isolate;
+  transition: padding 0.4s ease;
+}
+
+/* Scrolled state drops the outer gutter entirely so the capsule below can
+   reach the true viewport edges and sit flush against the top — not just
+   fill .nav's own (padded) content box. */
+.nav.is-scrolled {
+  padding: 0;
+}
+
+/* ── Liquid glass header ─────────────────────────────────────────────
+   Capsule starts as a narrow, centered pill and expands to a full-bleed,
+   60px-tall bar on scroll (see .nav.is-scrolled, toggled in main.js). The
+   three glass layers are inset:0 children of the capsule, so they resize
+   with it automatically — one width/height/radius transition drives both
+   the glass shape and the logo/links reflow, never two separate animations. */
+.nav__capsule {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(612px, 100%);
+  border-radius: 999px;
+  padding: 4px;
+  transition: width 0.4s ease, height 0.4s ease, border-radius 0.4s ease, padding 0.4s ease;
+}
+
+.nav.is-scrolled .nav__capsule {
+  width: 100%;
+  height: 60px;
+  border-radius: 0;
+  padding: 0 60px;
+}
+
+/* Three stacked layers behind the nav content: distortion+blur, edge
+   shine, and a tint to keep text contrast. Firefox renders the blur
+   without the SVG displacement, which degrades gracefully. */
+.glass-effect,
+.glass-shine,
+.glass-tint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glass-effect {
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  filter: url(#glass-distortion);
+}
+
+.glass-shine {
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.08);
+  opacity: 0.5;
+}
+
+.glass-tint {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.nav__logo,
+.nav__links {
+  position: relative;
+  z-index: 1;
+}
+
+.nav__logo {
+  padding-left: 8px;
+}
+
+.nav__logo img {
+  height: 22px;
+  width: auto;
+  display: block;
+}
+
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.nav__link {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  transition: color 0.2s ease;
+}
+
+.nav__link:hover {
+  color: var(--text);
+}
+
+.nav__lang {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 0;
+}
+
+.nav__lang-option {
+  color: var(--text-faint);
+  transition: color 0.2s ease;
+}
+
+.nav__lang-option--active {
+  color: var(--text);
+}
+
+.nav__lang-divider {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.nav__lang:hover .nav__lang-option {
+  color: var(--text-dim);
+}
+
+.nav__lang:hover .nav__lang-option--active {
+  color: var(--text);
+}
+
+/* Over the light band (credibility + services), swap the header text to
+   dark so it stays readable — toggled in main.js. */
+.nav--on-light .nav__link {
+  color: #262829;
+}
+
+.nav--on-light .nav__link:hover {
+  color: #000;
+}
+
+.nav--on-light .nav__lang-option,
+.nav--on-light .nav__lang-divider {
+  color: #262829;
+}
+
+.nav--on-light .nav__lang-option--active {
+  color: #55caea;
+}
+
+.nav--on-light .nav__lang:hover .nav__lang-option {
+  color: #000;
+}
+
+.nav--on-light .nav__lang:hover .nav__lang-option--active {
+  color: #55caea;
+}
+
+.nav__cta {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: #2479cb;
+  color: #fff;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.nav__cta:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+/* ── Hero ────────────────────────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.hero__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 65% 65% at 50% 42%, rgba(5, 7, 12, 0.45) 0%, rgba(5, 7, 12, 0.15) 45%, rgba(5, 7, 12, 0) 72%),
+    linear-gradient(180deg, rgba(5, 7, 12, 0.35) 0%, rgba(5, 7, 12, 0) 18%, rgba(5, 7, 12, 0) 78%, rgba(5, 7, 12, 0.85) 100%);
+}
+
+.hero__content {
+  position: relative;
+  z-index: 5;
+  max-width: 620px;
+  padding: 0 clamp(24px, 6vw, 80px);
+}
+
+.hero__content--split {
+  width: 100%;
+  max-width: 1100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hero__glow {
+  position: absolute;
+  left: 50%;
+  bottom: -8%;
+  width: min(1200px, 130vw);
+  height: 45%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: radial-gradient(ellipse 50% 100% at 50% 100%, rgba(48, 140, 232, 0.3) 0%, rgba(48, 140, 232, 0) 100%);
+}
+
+/* Four-line headline, each line auto-scaled by drawText() in main.js to
+   fill the wrap's width — the aspect-ratio is the one thing worth hand-
+   tuning here: wider ratio = shorter box = smaller auto-fit text. */
+.hero__headline-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 1.15;
+}
+
+.hero__headline-visual {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  transition: opacity 0.4s ease;
+}
+
+.hero__headline-line {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: clamp(2.4rem, 9vw, 6rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.hero__glass-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+#hero-headline-wrap.is-ready .hero__baked {
+  opacity: 0;
+}
+
+#hero-headline-wrap.is-ready .hero__glass-canvas {
+  opacity: 1;
+}
+
+.hero__sub {
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 1.3vw, 1.15rem);
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--text-dim);
+  text-align: left;
+  width: 100%;
+  max-width: 720px;
+  margin-top: 0px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  .nav__link {
+    display: none;
+  }
+
+  .nav__capsule {
+    padding: 8px 14px;
+  }
+
+  .nav.is-scrolled .nav__capsule {
+    height: 60px;
+    padding: 0 18px;
+  }
+
+  .nav__links {
+    gap: 14px;
+  }
+
+  .nav__cta {
+    padding: 8px 14px;
+    white-space: nowrap;
+  }
+
+  .hero__content {
+    max-width: 100%;
+  }
+
+  .hero__vignette {
+    background:
+      radial-gradient(ellipse 100% 55% at 50% 38%, rgba(5, 7, 12, 0.75) 0%, rgba(5, 7, 12, 0.35) 50%, rgba(5, 7, 12, 0) 70%),
+      linear-gradient(180deg, rgba(5, 7, 12, 0.4) 0%, rgba(5, 7, 12, 0.1) 20%, rgba(5, 7, 12, 0.35) 60%, rgba(5, 7, 12, 0.95) 100%);
+  }
+
+  .credibility {
+    min-height: auto;
+    padding: 40px 24px;
+  }
+
+  .numbers-grid {
+    flex-direction: column;
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .numbers-card {
+    width: 100%;
+  }
+
+  .numbers-card + .numbers-card {
+    border-left: none;
+    border-top: 1px solid #e7ebf0;
+  }
+}
+
+/* ── Shared section scaffolding ─────────────────────────────────────── */
+
+.section-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(88px, 12vw, 160px) clamp(24px, 6vw, 64px);
+}
+
+.section-heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 3.6vw, 2.75rem);
+  line-height: 1.14;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  max-width: 20ch;
+  margin-bottom: 20px;
+}
+
+.section-lead {
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+  max-width: 52ch;
+  margin-bottom: 48px;
+}
+
+.section-note {
+  margin-top: 28px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+/* Scroll-triggered reveal was removed: it depended on IntersectionObserver
+   firing at the right moment, which several capture/preview paths (and,
+   evidently, some real browser sessions) never reliably do, leaving whole
+   sections stuck at opacity 0. Content below is simply visible — reliability
+   over a decorative fade-in. */
+[data-reveal] {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── Testimonials (Figma node 208:297) ───────────────────────────────────
+   White, continuing the light band. Three laurel "4.8/5" badges above an
+   infinite, constant-speed left-to-right marquee — content is duplicated
+   once so the loop is seamless; never pauses, including on hover. */
+.trust {
+  position: relative;
+  background: #fff;
+  overflow: hidden;
+}
+
+.testimonials__inner {
+  padding: clamp(88px, 12vw, 160px) 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 60px;
+}
+
+.testimonials__laurels {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 29px 32px;
+  padding: 0 clamp(24px, 6vw, 64px);
+}
+
+.testimonials__laurel {
+  position: relative;
+  width: 160px;
+  height: 123px;
+  flex-shrink: 0;
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+/* JS-only hidden state — added right before the section is observed and
+   removed (staggered per laurel) once it scrolls into view. Never set in
+   plain CSS, so if JS fails to run the laurels are simply visible. */
+.testimonials__laurel.is-hidden {
+  opacity: 0;
+  transform: translateY(28px);
+}
+
+.testimonials__laurel-leaf {
+  position: absolute;
+  top: 0;
+  width: 58.862px;
+  height: 123px;
+}
+
+.testimonials__laurel-leaf--left {
+  left: 0;
+}
+
+.testimonials__laurel-leaf--right {
+  right: 0;
+}
+
+.testimonials__laurel-text {
+  position: absolute;
+  left: 50%;
+  top: 31px;
+  transform: translateX(-50%);
+  width: 124px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  color: #262829;
+}
+
+.testimonials__laurel-score {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.testimonials__laurel-label {
+  font-family: var(--font-body);
+  font-size: 12px;
+}
+
+.testimonials__marquee {
+  width: 100%;
+  overflow: hidden;
+}
+
+.testimonials__track {
+  display: flex;
+  width: max-content;
+  transform: translateX(-50%);
+}
+
+.testimonials__set {
+  display: flex;
+  gap: 40px;
+  padding-left: 40px;
+}
+
+.testimonials__quote {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.testimonials__quote p {
+  width: 300px;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 14px;
+  letter-spacing: -0.0165em;
+  text-align: justify;
+  color: #262829;
+}
+
+.testimonials__bracket {
+  flex-shrink: 0;
+  width: 12.1px;
+  height: 87.084px;
+}
+
+.testimonials__bracket--open {
+  transform: scaleY(-1) rotate(180deg);
+}
+
+/* ── Credibility (Figma node 193:306) ────────────────────────────────────
+   Deliberately light — a bright, mapped "numbers" band breaking the dark
+   theme, per the referenced design. Kept isolated from .stat-grid/.stat-card
+   (shared with .trust below) so this section's light-theme values never
+   leak into that dark section. */
+.credibility {
+  position: relative;
+  min-height: 332px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f6f7f8;
+  padding: 56px clamp(24px, 6vw, 64px);
+  overflow: hidden;
+}
+
+.credibility__map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.credibility__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.credibility__heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 24px;
+  letter-spacing: -0.0275em;
+  text-align: center;
+  color: #262829;
+}
+
+.numbers-grid {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #ced1d5;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.numbers-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  width: 261.75px;
+  padding: 24px 28px 28px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.numbers-card + .numbers-card {
+  border-left: 1px solid #e7ebf0;
+}
+
+.numbers-card__value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 44.8px;
+  letter-spacing: -0.01em;
+  color: #262829;
+}
+
+.numbers-card__label {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* ── Services (Figma node 193:416) ───────────────────────────────────────
+   Light, matching the credibility band above it: two decorative sphere
+   images bleed off the section edges behind a centered content column. */
+.services {
+  position: relative;
+  background: #f0f2f4;
+  overflow: hidden;
+}
+
+.services__sphere {
+  position: absolute;
+  top: 180px;
+  width: 46%;
+  aspect-ratio: 706 / 730;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
+
+.services__sphere--wire {
+  left: -22%;
+  background-image: url('img/services-sphere-wire.png');
+  opacity: 0.8;
+}
+
+.services__sphere--color {
+  right: -22%;
+  background-image: url('img/services-sphere-color.png');
+  transform: scaleY(-1) rotate(180deg);
+}
+
+.services .section-heading {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 8px;
+  color: #262829;
+}
+
+.services__more {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: #97a3b8;
+  margin-bottom: 40px;
+}
+
+.services__more span {
+  transition: transform 0.25s ease;
+}
+
+.services__more:hover span {
+  transform: translateX(3px);
+}
+
+.service-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.service-card {
+  position: relative;
+  background: rgba(233, 233, 233, 0.5);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid #fff;
+  border-radius: 10px;
+  padding: 30px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.service-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 32px -18px rgba(38, 40, 41, 0.35);
+}
+
+.service-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #2479cb;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.service-card__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.service-card__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  color: #262829;
+}
+
+.service-card__desc {
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #262829;
+}
+
+@media (max-width: 860px) {
+  .service-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .service-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Expertise (Figma node 197:1360) ─────────────────────────────────────
+   Light, continuing the same band as Numbers/Services above it. Three
+   alternating image+text rows instead of the old three-card grid — image
+   left/right/left, middle content never moves. */
+.capabilities {
+  background: #f8f8f8;
+}
+
+.expertise__inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(88px, 12vw, 160px) clamp(24px, 6vw, 64px);
+  display: flex;
+  flex-direction: column;
+  gap: 120px;
+}
+
+.expertise__intro {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.expertise__heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 3.6vw, 2.75rem);
+  letter-spacing: -0.015em;
+  color: #262829;
+  flex-shrink: 0;
+}
+
+.expertise__lead {
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #262829;
+  max-width: 52ch;
+  flex: 1;
+}
+
+/* ── Kinetic typography: Expertise intro reveal ───────────────────────────
+   Purely additive — .kl wraps the whole heading as one unit, and each full
+   wrapped line of the lead paragraph as another, split out of the existing
+   text at runtime. Layout, font, size, and color are untouched; only
+   opacity (text) and transform (the sweeping block) animate, and both
+   settle back to the exact static appearance. Every unit sweeps the same
+   left-to-right direction — no direction variation. Duration is per-unit
+   via --kdur (heading fast, paragraph lines slower); delay via --kd. */
+.kl {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+}
+
+.kl__text {
+  display: inline-block;
+  opacity: 0;
+}
+
+.kl__block {
+  position: absolute;
+  inset: 0;
+  background: #2479cb;
+  pointer-events: none;
+  transform: translateX(-110%);
+}
+
+.is-revealing .kl__block {
+  animation: kinetic-sweep-left var(--kdur, 0.42s) cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation-delay: var(--kd, 0s);
+}
+
+.is-revealing .kl__text {
+  animation: kinetic-text-in var(--kdur, 0.42s) steps(1, end) both;
+  animation-delay: var(--kd, 0s);
+}
+
+@keyframes kinetic-text-in {
+  0%,
+  49.9% {
+    opacity: 0;
+  }
+  50%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes kinetic-sweep-left {
+  0% {
+    transform: translateX(-110%);
+  }
+  45%,
+  55% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(110%);
+  }
+}
+
+.expertise__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+}
+
+.expertise__row {
+  display: flex;
+  align-items: center;
+  gap: 80px;
+}
+
+.expertise__image {
+  flex-shrink: 0;
+  width: 360px;
+  aspect-ratio: 360 / 540;
+  border-radius: 8px;
+  background:
+    linear-gradient(155deg, rgba(36, 121, 203, 0.1), rgba(95, 203, 232, 0.14)),
+    #eceef1;
+  position: relative;
+  overflow: hidden;
+}
+
+.expertise__image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 40px;
+  height: 40px;
+  background: rgba(151, 163, 184, 0.4);
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>') center / contain no-repeat;
+}
+
+/* Product Identity uses a real (placeholder) video instead of the empty
+   image slot — no icon needed, and the video fills the same rounded box. */
+.expertise__image--video::after {
+  display: none;
+}
+
+.expertise__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.expertise__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.expertise__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.expertise__title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #262829;
+}
+
+.expertise__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.expertise__tag {
+  border: 1px solid #e5eaf3;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: #97a3b8;
+}
+
+.expertise__desc {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #97a3b8;
+}
+
+.expertise__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: #2479cb;
+}
+
+.expertise__link span {
+  transition: transform 0.25s ease;
+}
+
+.expertise__link:hover span {
+  transform: translateX(3px);
+}
+
+@media (max-width: 860px) {
+  .expertise__row,
+  .expertise__row--reverse {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 28px;
+  }
+
+  .expertise__image {
+    width: 100%;
+  }
+
+  /* Row 2's DOM order is content-then-image (so desktop can put the text on
+     the left, image on the right, without a flex-direction reverse). On
+     mobile that DOM order would stack text above image, breaking the
+     image-then-text pattern the other two rows follow — reorder visually
+     so every row is consistently image on top. */
+  .expertise__row--reverse .expertise__image {
+    order: -1;
+  }
+}
+
+/* ── Contact / Get in Touch ─────────────────────────────────────────── */
+
+/* ── Contact (Figma node 226:2954) ───────────────────────────────────────
+   Full-bleed background image — placeholder for now, swapped out later. */
+.contact {
+  position: relative;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* Interactive rotating-earth WebGL background (vendor/earth-bg), replacing
+   the static image. Loaded in an iframe so its own full-viewport sizing
+   logic just works, scoped to this section instead of the whole page. */
+.contact__earth {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  z-index: 1;
+}
+
+.contact__inner {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.contact__cta {
+  pointer-events: auto;
+}
+
+.contact__heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.7rem, 4.4vw, 3rem);
+  line-height: 1.08;
+  letter-spacing: -0.028em;
+  color: #fff;
+  max-width: 36ch;
+  margin-bottom: 16px;
+}
+
+.contact__lead {
+  font-family: var(--font-body);
+  font-size: 1.15rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+  max-width: 42ch;
+  margin-bottom: 44px;
+}
+
+.contact__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.contact__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 16px 32px;
+  border-radius: 999px;
+  background: #fff;
+  color: #050608;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.contact__cta:hover {
+  filter: brightness(0.94);
+  transform: translateY(-1px);
+}
+
+.contact__cta span {
+  transition: transform 0.25s ease;
+}
+
+.contact__cta:hover span {
+  transform: translateX(2px);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+
+.footer {
+  background: var(--bg);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.footer__inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 36px clamp(24px, 6vw, 64px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.footer__logo {
+  height: 18px;
+  width: auto;
+  opacity: 0.7;
+}
+
+.footer__links {
+  display: flex;
+  gap: 28px;
+}
+
+.footer__links a {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-faint);
+  transition: color 0.2s ease;
+}
+
+.footer__links a:hover {
+  color: var(--text-dim);
+}
+
+.footer__copy {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav__cta {
+    transition: none;
+  }
+}
