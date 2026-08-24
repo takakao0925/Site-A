@@ -10,6 +10,10 @@
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+<div id="page-loader" aria-hidden="true">
+  <span id="page-loader-percent">0%</span>
+</div>
+<script>document.body.classList.add('is-loading');</script>
 <!--
 THESIS: Refuses the case-study-grid agency default. Proves capability by
 showing the seam where design and engineering fuse, not by showing finished
@@ -299,6 +303,64 @@ finish review, the verdict, and DESIGN.md.
   </div>
 </footer>
 
+<script>
+(function () {
+  // Deliberately not deferred and not dependent on main.js — this is its
+  // own small, self-contained failure domain, with a hard timeout, so a
+  // slow video or a broken main.js can never leave the loader stuck up
+  // forever. Videos are already loading on their own (plain <video src>,
+  // no lazy trigger needed here) — this just watches for that to finish.
+  var videos = [].slice.call(document.querySelectorAll('video'));
+  var fontsReady = (document.fonts && document.fonts.ready) || Promise.resolve();
+  var total = videos.length + 1; // +1 for web fonts
+  var loaded = 0;
+  var done = false;
+  var MAX_WAIT = 7000;
+
+  var percentEl = document.getElementById('page-loader-percent');
+  var loaderEl = document.getElementById('page-loader');
+
+  function updatePercent() {
+    if (!percentEl) return;
+    var pct = Math.min(100, Math.round((loaded / total) * 100));
+    percentEl.textContent = pct + '%';
+  }
+
+  function markLoaded() {
+    loaded += 1;
+    updatePercent();
+    if (loaded >= total) finish();
+  }
+
+  function finish() {
+    if (done) return;
+    done = true;
+    if (percentEl) percentEl.textContent = '100%';
+    document.body.classList.remove('is-loading');
+    if (loaderEl) {
+      loaderEl.classList.add('is-done');
+      setTimeout(function () {
+        if (loaderEl.parentNode) loaderEl.parentNode.removeChild(loaderEl);
+      }, 600);
+    }
+  }
+
+  if (!loaderEl || total === 0) {
+    finish();
+  } else {
+    videos.forEach(function (video) {
+      if (video.readyState >= 3) {
+        markLoaded();
+      } else {
+        video.addEventListener('canplaythrough', markLoaded, { once: true });
+        video.addEventListener('error', markLoaded, { once: true });
+      }
+    });
+    fontsReady.then(markLoaded, markLoaded);
+    setTimeout(finish, MAX_WAIT);
+  }
+})();
+</script>
 <script src="main.js" defer></script>
 </body>
 </html>

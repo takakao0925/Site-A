@@ -442,21 +442,47 @@ function initCredibilityCountUp() {
   if (!values.length || !section) return;
 
   const reduceMotionCount = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotionCount) return;
+
+  // Original text is read once, up front, into a data attribute — animateValue
+  // and resetValue both read from there so replays always count up to the
+  // real target, never to whatever the last animation frame happened to
+  // leave behind in textContent.
+  values.forEach((el) => {
+    el.dataset.target = el.textContent.trim();
+  });
+
+  function parseTarget(el) {
+    const match = el.dataset.target.match(/^([\d.]+)(.*)$/);
+    if (!match) return null;
+    return {
+      target: parseFloat(match[1]),
+      suffix: match[2],
+      decimals: (match[1].split('.')[1] || '').length,
+    };
+  }
+
+  // A fast scroll can pass an element through "intersecting" and back out
+  // again before a running rAF loop finishes, which would otherwise leave
+  // a stale loop overwriting textContent for another 1400ms regardless of
+  // what runs after it. Each element gets a run token — animateValue and
+  // resetValue both bump it and capture their own copy, so a stale frame()
+  // checking a token that's since moved on just quietly stops.
+  const runToken = new WeakMap();
 
   function animateValue(el) {
-    const raw = el.textContent.trim();
-    const match = raw.match(/^([\d.]+)(.*)$/);
-    if (!match) return;
-    const target = parseFloat(match[1]);
-    const suffix = match[2];
-    const decimals = (match[1].split('.')[1] || '').length;
+    const parsed = parseTarget(el);
+    if (!parsed) return;
+    const { target, suffix, decimals } = parsed;
 
-    if (reduceMotionCount) return;
+    const myToken = (runToken.get(el) || 0) + 1;
+    runToken.set(el, myToken);
 
     const duration = 1400;
     const start = performance.now();
 
     function frame(now) {
+      if (runToken.get(el) !== myToken) return;
       const elapsed = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - elapsed, 3);
       el.textContent = (target * eased).toFixed(decimals) + suffix;
@@ -465,16 +491,32 @@ function initCredibilityCountUp() {
     requestAnimationFrame(frame);
   }
 
+  function resetValue(el) {
+    const parsed = parseTarget(el);
+    if (!parsed) return;
+    runToken.set(el, (runToken.get(el) || 0) + 1);
+    el.textContent = (0).toFixed(parsed.decimals) + parsed.suffix;
+  }
+
   if (typeof IntersectionObserver === 'undefined') {
     values.forEach(animateValue);
     return;
   }
 
+  // Deliberately never unobserve: scrolling down in triggers the count-up,
+  // scrolling back up past the section (back toward the hero) resets it to
+  // 0 so scrolling down into it again replays the animation instead of
+  // just sitting at the finished value.
+  let hasCounted = false;
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      values.forEach(animateValue);
-      observer.unobserve(entry.target);
+      if (entry.isIntersecting) {
+        values.forEach(animateValue);
+        hasCounted = true;
+      } else if (hasCounted && entry.boundingClientRect.top > 0) {
+        values.forEach(resetValue);
+        hasCounted = false;
+      }
     });
   }, { threshold: 0.4 });
 
