@@ -498,29 +498,39 @@ function initCredibilityCountUp() {
     el.textContent = (0).toFixed(parsed.decimals) + parsed.suffix;
   }
 
-  if (typeof IntersectionObserver === 'undefined') {
-    values.forEach(animateValue);
-    return;
+  // Driven off the scroll event (rAF-throttled, same pattern as the nav
+  // capsule above) rather than IntersectionObserver — measured on the live
+  // deployed site, IntersectionObserver's own callback scheduling was too
+  // unreliable/delayed for a check this position-sensitive (a scroll back
+  // up to the hero didn't reset in time). A direct getBoundingClientRect()
+  // read on every scroll tick has no such lag.
+  let hasCounted = false;
+  let countTicking = false;
+
+  function checkCountState() {
+    const rect = section.getBoundingClientRect();
+    const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+    const visibleRatio = rect.height > 0 ? Math.max(0, visibleHeight) / rect.height : 0;
+
+    if (!hasCounted && visibleRatio >= 0.4) {
+      values.forEach(animateValue);
+      hasCounted = true;
+    } else if (hasCounted && rect.top > 0) {
+      values.forEach(resetValue);
+      hasCounted = false;
+    }
   }
 
-  // Deliberately never unobserve: scrolling down in triggers the count-up,
-  // scrolling back up past the section (back toward the hero) resets it to
-  // 0 so scrolling down into it again replays the animation instead of
-  // just sitting at the finished value.
-  let hasCounted = false;
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        values.forEach(animateValue);
-        hasCounted = true;
-      } else if (hasCounted && entry.boundingClientRect.top > 0) {
-        values.forEach(resetValue);
-        hasCounted = false;
-      }
+  window.addEventListener('scroll', () => {
+    if (countTicking) return;
+    countTicking = true;
+    requestAnimationFrame(() => {
+      checkCountState();
+      countTicking = false;
     });
-  }, { threshold: 0.4 });
+  }, { passive: true });
 
-  observer.observe(section);
+  checkCountState();
 }
 
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
