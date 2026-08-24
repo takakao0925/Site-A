@@ -4,6 +4,37 @@
 // an enhancement, never a requirement for the page to be usable — see the
 // try/catch around the dynamic import further down.
 
+// ── Expertise videos: force autoplay, no play-button flash ──────────────
+// The `autoplay muted playsinline` attributes are usually enough, but some
+// mobile browsers (notably Android Chrome under data-saver, or when the
+// `muted` attribute alone isn't trusted) still pause and show a play
+// button until a script explicitly sets `.muted = true` and calls
+// `.play()`. Retried once the video actually scrolls into view, since
+// some browsers defer/cancel autoplay for off-screen media.
+(function forceExpertiseVideoAutoplay() {
+  const videos = [...document.querySelectorAll('.expertise__video')];
+  if (!videos.length) return;
+
+  function attemptPlay(video) {
+    video.muted = true;
+    video.playsInline = true;
+    const playPromise = video.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(() => {});
+    }
+  }
+
+  videos.forEach(attemptPlay);
+
+  if (typeof IntersectionObserver === 'undefined') return;
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting && entry.target.paused) attemptPlay(entry.target);
+    });
+  }, { threshold: 0.1 });
+  videos.forEach((video) => observer.observe(video));
+})();
+
 // Language toggle — UI-only for now, no localized copy wired up yet.
 const langToggle = document.getElementById('lang-toggle');
 if (langToggle) {
