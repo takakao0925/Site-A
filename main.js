@@ -4,37 +4,6 @@
 // an enhancement, never a requirement for the page to be usable — see the
 // try/catch around the dynamic import further down.
 
-// ── Expertise videos: force autoplay, no play-button flash ──────────────
-// The `autoplay muted playsinline` attributes are usually enough, but some
-// mobile browsers (notably Android Chrome under data-saver, or when the
-// `muted` attribute alone isn't trusted) still pause and show a play
-// button until a script explicitly sets `.muted = true` and calls
-// `.play()`. Retried once the video actually scrolls into view, since
-// some browsers defer/cancel autoplay for off-screen media.
-(function forceExpertiseVideoAutoplay() {
-  const videos = [...document.querySelectorAll('.expertise__video')];
-  if (!videos.length) return;
-
-  function attemptPlay(video) {
-    video.muted = true;
-    video.playsInline = true;
-    const playPromise = video.play();
-    if (playPromise && typeof playPromise.catch === 'function') {
-      playPromise.catch(() => {});
-    }
-  }
-
-  videos.forEach(attemptPlay);
-
-  if (typeof IntersectionObserver === 'undefined') return;
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting && entry.target.paused) attemptPlay(entry.target);
-    });
-  }, { threshold: 0.1 });
-  videos.forEach((video) => observer.observe(video));
-})();
-
 // Language toggle — UI-only for now, no localized copy wired up yet.
 const langToggle = document.getElementById('lang-toggle');
 if (langToggle) {
@@ -48,20 +17,33 @@ if (langToggle) {
 }
 
 // Capsule header — expands from a floating pill to a full-width bar once
-// the second section (credibility stats) reaches the header, not on a flat
-// scroll-distance threshold. rAF-throttled so it doesn't run on every event.
-// The logo swaps to the color mark in the same step, same size, no fade.
+// the second section (Numbers Tell the Story v2) reaches the header, not on
+// a flat scroll-distance threshold. rAF-throttled so it doesn't run on every
+// event. The logo (two stacked <img>s, see .nav__logo-img--white/--color in
+// styles.css) crossfades via CSS opacity off .nav--on-light below — the
+// same up-to-date light/dark check the nav text color already uses —
+// instead of a separate one-shot swap tied to this capsule expansion, which
+// used to leave the colored mark showing even back over a later dark
+// section like #wwd2.
 const navEl = document.querySelector('.nav');
-const navTriggerSection = document.getElementById('credibility');
-const navLogoImg = document.getElementById('nav-logo-img');
-const NAV_LOGO_DEFAULT = 'img/logo_print_horizon-white.png';
-const NAV_LOGO_SCROLLED = 'img/logo_print_horizon.png';
-// The light band (credibility + services + capabilities + trust, which is
-// also a white section) needs dark nav text — toggled by whether that
-// combined range currently overlaps the header, so it reverts once the page
-// scrolls past trust into the dark contact section below.
-const navLightZoneStart = document.getElementById('credibility');
-const navLightZoneEnd = document.getElementById('trust');
+const navTriggerSection = document.getElementById('numbers-alt');
+// The shared topography canvas (see initNumbersStage()) flips #numbers-alt's
+// background from light to dark on its own scroll-driven schedule, stashing
+// live 0..1 progress on this container's _topoSeamT — read directly below
+// instead of just checking whether #numbers-alt's (still-pinned, by-then
+// invisible) box overlaps the header, which used to stay "light" for the
+// whole rest of numbers-pin's scroll range even after the canvas underneath
+// had already gone dark.
+const topoContainer = document.querySelector('[data-topography]');
+// The light bands need dark nav text — toggled by whether the header
+// currently overlaps any of them. Two separate ranges rather than one long
+// one: #connect and #wwd2 sit between numbers-alt and expertise-alt and are
+// dark (dark topography canvases of their own by this point), so that whole
+// stretch must be excluded or the nav text would go dark-on-dark there.
+const navLightZones = [
+  [document.getElementById('numbers-alt'), document.getElementById('numbers-alt')],
+  [document.getElementById('expertise-alt'), document.getElementById('client2')],
+];
 if (navEl && navTriggerSection) {
   let navTicking = false;
   window.addEventListener('scroll', () => {
@@ -71,16 +53,19 @@ if (navEl && navTriggerSection) {
       const navHeight = navEl.getBoundingClientRect().height;
       const reachedSecondSection = navTriggerSection.getBoundingClientRect().top <= navHeight;
       navEl.classList.toggle('is-scrolled', reachedSecondSection);
-      if (navLogoImg) {
-        const nextSrc = reachedSecondSection ? NAV_LOGO_SCROLLED : NAV_LOGO_DEFAULT;
-        if (!navLogoImg.src.endsWith(nextSrc)) navLogoImg.src = nextSrc;
-      }
-      if (navLightZoneStart && navLightZoneEnd) {
-        const lightTop = navLightZoneStart.getBoundingClientRect().top;
-        const lightBottom = navLightZoneEnd.getBoundingClientRect().bottom;
-        const overLight = lightTop <= navHeight && lightBottom >= 0;
-        navEl.classList.toggle('nav--on-light', overLight);
-      }
+      const overLight = navLightZones.some(([startEl, endEl], zoneIndex) => {
+        if (!startEl || !endEl) return false;
+        const top = startEl.getBoundingClientRect().top;
+        const bottom = endEl.getBoundingClientRect().bottom;
+        if (!(top <= navHeight && bottom >= 0)) return false;
+        // First zone (#numbers-alt) shares its background with the canvas
+        // that also covers WWD below it — defer to the canvas's own live
+        // flip progress instead of treating the whole pinned-box overlap
+        // as "light".
+        if (zoneIndex === 0) return !topoContainer || (topoContainer._topoSeamT || 0) < 0.5;
+        return true;
+      });
+      navEl.classList.toggle('nav--on-light', overLight);
       navTicking = false;
     });
   });
@@ -320,125 +305,10 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
   window.addEventListener('DOMContentLoaded', initHeroGlass);
 }
 
-// ── Credibility section: interactive dot-map background ─────────────────
-// Same hover-glow concept as the worldmap_test.html reference: a grid of
-// dots brightens toward --teal as the pointer nears. Adapted to cover-fit
-// the section's real box instead of a fixed test canvas, and redrawn only
-// on mousemove/resize (not a perpetual rAF loop) since nothing here is
-// time-based — the color is a pure function of pointer distance.
-function initCredibilityMap() {
-  const canvas = document.getElementById('credibility-map');
-  const section = canvas && canvas.closest('.credibility');
-  if (!canvas || !section) return;
-  const ctx = canvas.getContext('2d');
-
-  const DOTS = [[379.95,173.28],[409.66,182.69],[379.95,182.69],[399.76,163.86],[399.76,116.77],[399.76,145.02],[399.76,154.44],[379.95,107.36],[379.95,126.19],[379.95,116.77],[379.95,163.86],[399.76,107.36],[379.95,145.02],[379.95,154.44],[399.76,173.28],[370.05,116.77],[370.05,145.02],[370.05,126.19],[370.05,154.44],[399.76,97.94],[370.05,173.28],[370.05,163.86],[399.76,69.69],[399.76,79.11],[429.47,192.11],[399.76,88.52],[399.76,32.02],[399.76,41.44],[419.56,41.44],[389.86,154.44],[389.86,145.02],[389.86,126.19],[389.86,182.69],[389.86,116.77],[389.86,163.86],[389.86,192.11],[389.86,173.28],[419.56,182.69],[419.56,13.19],[419.56,173.28],[399.76,192.11],[389.86,88.52],[389.86,97.94],[389.86,107.36],[419.56,97.94],[419.56,69.69],[419.56,88.52],[419.56,79.11],[419.56,22.6],[370.05,182.69],[419.56,154.44],[419.56,135.61],[419.56,145.02],[419.56,163.86],[419.56,107.36],[419.56,116.77],[419.56,126.19],[419.56,192.11],[340.34,182.69],[340.34,192.11],[439.37,126.19],[439.37,135.61],[439.37,97.94],[439.37,116.77],[439.37,107.36],[340.34,145.02],[340.34,173.28],[439.37,145.02],[439.37,163.86],[439.37,154.44],[439.37,88.52],[340.34,154.44],[300.73,97.94],[310.63,97.94],[310.63,107.36],[409.66,173.28],[290.82,107.36],[439.37,173.28],[409.66,163.86],[300.73,107.36],[409.66,145.02],[409.66,88.52],[330.44,182.69],[409.66,97.94],[439.37,79.11],[409.66,135.61],[409.66,154.44],[350.24,135.61],[360.14,182.69],[429.47,88.52],[399.76,22.6],[360.14,173.28],[429.47,79.11],[429.47,69.69],[360.14,163.86],[409.66,79.11],[429.47,145.02],[429.47,135.61],[429.47,97.94],[429.47,116.77],[429.47,107.36],[429.47,126.19],[409.66,32.02],[350.24,145.02],[350.24,154.44],[350.24,182.69],[409.66,69.69],[409.66,41.44],[350.24,173.28],[409.66,13.19],[429.47,163.86],[409.66,22.6],[429.47,154.44],[350.24,126.19],[419.56,314.53],[419.56,305.12],[419.56,295.7],[419.56,286.28],[419.56,342.78],[419.56,352.2],[419.56,333.37],[419.56,323.95],[429.47,323.95],[439.37,276.86],[439.37,267.45],[439.37,248.61],[439.37,286.28],[439.37,258.03],[439.37,295.7],[439.37,314.53],[439.37,305.12],[449.27,333.37],[459.18,333.37],[459.18,314.53],[439.37,239.19],[459.18,267.45],[459.18,323.95],[429.47,220.36],[449.27,267.45],[449.27,276.86],[429.47,248.61],[419.56,220.36],[429.47,314.53],[429.47,333.37],[419.56,239.19],[419.56,229.78],[419.56,248.61],[419.56,267.45],[419.56,258.03],[429.47,229.78],[419.56,276.86],[429.47,258.03],[429.47,239.19],[429.47,267.45],[429.47,295.7],[429.47,305.12],[429.47,286.28],[429.47,276.86],[360.14,258.03],[370.05,248.61],[370.05,239.19],[370.05,258.03],[370.05,267.45],[370.05,220.36],[370.05,229.78],[360.14,201.53],[360.14,229.78],[360.14,239.19],[360.14,210.94],[360.14,248.61],[360.14,220.36],[370.05,210.94],[379.95,276.86],[379.95,258.03],[379.95,267.45],[379.95,239.19],[370.05,201.53],[379.95,248.61],[379.95,314.53],[379.95,323.95],[379.95,286.28],[379.95,305.12],[379.95,295.7],[330.44,248.61],[340.34,239.19],[330.44,229.78],[360.14,267.45],[340.34,258.03],[340.34,248.61],[340.34,267.45],[320.53,248.61],[330.44,239.19],[320.53,239.19],[379.95,229.78],[330.44,258.03],[330.44,220.36],[350.24,220.36],[350.24,229.78],[350.24,239.19],[350.24,201.53],[350.24,210.94],[340.34,229.78],[350.24,248.61],[340.34,220.36],[340.34,210.94],[409.66,220.36],[350.24,258.03],[350.24,267.45],[409.66,361.62],[399.76,220.36],[409.66,333.37],[409.66,352.2],[399.76,239.19],[409.66,342.78],[399.76,229.78],[399.76,276.86],[399.76,248.61],[399.76,286.28],[399.76,267.45],[399.76,258.03],[409.66,229.78],[409.66,258.03],[409.66,248.61],[399.76,295.7],[409.66,267.45],[409.66,323.95],[409.66,239.19],[409.66,314.53],[409.66,305.12],[409.66,286.28],[409.66,276.86],[409.66,295.7],[399.76,361.62],[389.86,276.86],[389.86,286.28],[389.86,267.45],[389.86,258.03],[389.86,295.7],[389.86,305.12],[379.95,210.94],[389.86,342.78],[389.86,314.53],[389.86,248.61],[389.86,323.95],[389.86,333.37],[399.76,342.78],[399.76,323.95],[399.76,333.37],[399.76,305.12],[399.76,314.53],[389.86,220.36],[399.76,352.2],[389.86,239.19],[389.86,229.78],[379.95,220.36],[389.86,210.94],[578.02,295.7],[578.02,286.28],[568.11,267.45],[578.02,276.86],[587.92,305.12],[568.11,276.86],[568.11,286.28],[647.34,361.62],[657.24,314.53],[657.24,286.28],[657.24,267.45],[657.24,295.7],[667.14,389.87],[667.14,371.03],[667.14,342.78],[667.14,352.2],[667.14,361.62],[657.24,352.2],[657.24,371.03],[647.34,295.7],[736.47,323.95],[647.34,333.37],[647.34,286.28],[657.24,342.78],[647.34,342.78],[657.24,333.37],[667.14,333.37],[657.24,361.62],[706.76,323.95],[706.76,380.45],[706.76,305.12],[706.76,389.87],[706.76,399.29],[716.66,323.95],[716.66,389.87],[706.76,258.03],[667.14,323.95],[716.66,399.29],[677.05,352.2],[667.14,295.7],[677.05,361.62],[667.14,305.12],[677.05,305.12],[677.05,342.78],[677.05,295.7],[706.76,408.7],[657.24,323.95],[617.63,323.95],[617.63,361.62],[617.63,333.37],[617.63,352.2],[617.63,342.78],[617.63,305.12],[597.82,286.28],[597.82,276.86],[617.63,295.7],[607.73,258.03],[607.73,286.28],[607.73,267.45],[647.34,352.2],[597.82,305.12],[607.73,361.62],[607.73,371.03],[607.73,352.2],[607.73,342.78],[607.73,333.37],[607.73,276.86],[637.43,352.2],[597.82,342.78],[637.43,342.78],[637.43,361.62],[637.43,333.37],[637.43,267.45],[637.43,286.28],[637.43,314.53],[637.43,323.95],[627.53,305.12],[627.53,323.95],[617.63,248.61],[627.53,361.62],[597.82,361.62],[617.63,258.03],[627.53,352.2],[627.53,333.37],[627.53,342.78],[597.82,352.2],[211.6,295.7],[152.18,220.36],[191.79,276.86],[211.6,286.28],[191.79,267.45],[191.79,305.12],[191.79,295.7],[191.79,286.28],[211.6,314.53],[211.6,352.2],[211.6,361.62],[211.6,342.78],[211.6,323.95],[211.6,333.37],[181.89,258.03],[211.6,305.12],[221.5,361.62],[211.6,276.86],[112.56,220.36],[211.6,258.03],[221.5,389.87],[221.5,446.37],[211.6,371.03],[221.5,371.03],[181.89,267.45],[221.5,380.45],[181.89,295.7],[132.37,239.19],[181.89,286.28],[171.98,239.19],[132.37,229.78],[171.98,248.61],[132.37,220.36],[201.69,361.62],[201.69,342.78],[201.69,323.95],[201.69,333.37],[201.69,305.12],[201.69,314.53],[201.69,418.12],[201.69,295.7],[221.5,333.37],[221.5,352.2],[201.69,371.03],[211.6,380.45],[201.69,352.2],[201.69,408.7],[201.69,399.29],[201.69,380.45],[201.69,389.87],[201.69,286.28],[191.79,239.19],[122.47,229.78],[122.47,220.36],[201.69,436.95],[211.6,389.87],[211.6,408.7],[201.69,427.54],[211.6,399.29],[201.69,239.19],[201.69,276.86],[201.69,258.03],[201.69,267.45],[211.6,427.54],[211.6,436.95],[211.6,267.45],[241.31,295.7],[241.31,305.12],[241.31,286.28],[251.21,352.2],[241.31,276.86],[241.31,361.62],[251.21,342.78],[241.31,342.78],[241.31,352.2],[241.31,333.37],[241.31,323.95],[241.31,314.53],[251.21,276.86],[251.21,286.28],[261.11,342.78],[261.11,333.37],[261.11,323.95],[261.11,314.53],[251.21,323.95],[251.21,314.53],[251.21,305.12],[251.21,295.7],[251.21,333.37],[231.4,361.62],[221.5,267.45],[221.5,286.28],[241.31,371.03],[231.4,371.03],[221.5,276.86],[221.5,295.7],[221.5,314.53],[221.5,323.95],[221.5,305.12],[231.4,380.45],[231.4,352.2],[231.4,286.28],[231.4,276.86],[231.4,305.12],[231.4,267.45],[231.4,295.7],[231.4,333.37],[231.4,314.53],[231.4,342.78],[231.4,323.95],[280.92,295.7],[271.02,314.53],[271.02,323.95],[261.11,286.28],[271.02,333.37],[142.27,248.61],[271.02,295.7],[142.27,239.19],[152.18,229.78],[280.92,314.53],[152.18,239.19],[280.92,305.12],[152.18,248.61],[271.02,305.12],[261.11,305.12],[142.27,220.36],[261.11,295.7],[171.98,258.03],[142.27,229.78],[162.08,248.61],[221.5,342.78],[627.53,145.02],[627.53,154.44],[627.53,69.69],[627.53,79.11],[627.53,88.52],[627.53,97.94],[627.53,107.36],[627.53,126.19],[627.53,135.61],[627.53,116.77],[607.73,163.86],[607.73,173.28],[617.63,163.86],[637.43,173.28],[607.73,210.94],[607.73,182.69],[637.43,210.94],[627.53,50.85],[607.73,126.19],[607.73,116.77],[607.73,107.36],[607.73,145.02],[607.73,154.44],[607.73,135.61],[607.73,201.53],[617.63,88.52],[617.63,97.94],[617.63,107.36],[617.63,50.85],[637.43,163.86],[617.63,60.27],[617.63,69.69],[617.63,79.11],[617.63,192.11],[617.63,182.69],[617.63,173.28],[617.63,126.19],[617.63,145.02],[617.63,135.61],[617.63,116.77],[607.73,60.27],[627.53,173.28],[627.53,163.86],[607.73,69.69],[607.73,79.11],[607.73,97.94],[607.73,88.52],[607.73,50.85],[587.92,182.69],[607.73,192.11],[607.73,220.36],[627.53,201.53],[627.53,182.69],[627.53,192.11],[627.53,60.27],[686.95,97.94],[696.86,135.61],[686.95,69.69],[686.95,79.11],[686.95,88.52],[696.86,145.02],[696.86,88.52],[696.86,97.94],[696.86,107.36],[696.86,116.77],[696.86,126.19],[686.95,135.61],[677.05,88.52],[677.05,69.69],[677.05,79.11],[686.95,107.36],[677.05,107.36],[677.05,97.94],[696.86,79.11],[686.95,116.77],[686.95,154.44],[677.05,60.27],[686.95,145.02],[696.86,69.69],[736.47,107.36],[726.57,88.52],[726.57,79.11],[726.57,107.36],[726.57,97.94],[716.66,79.11],[637.43,154.44],[746.37,97.94],[736.47,79.11],[736.47,97.94],[736.47,88.52],[706.76,97.94],[677.05,116.77],[706.76,107.36],[706.76,116.77],[706.76,126.19],[706.76,88.52],[716.66,88.52],[716.66,97.94],[706.76,79.11],[716.66,107.36],[716.66,116.77],[746.37,88.52],[647.34,135.61],[647.34,145.02],[647.34,154.44],[647.34,163.86],[647.34,126.19],[647.34,107.36],[647.34,69.69],[647.34,79.11],[647.34,97.94],[647.34,116.77],[647.34,192.11],[647.34,88.52],[637.43,126.19],[637.43,116.77],[647.34,201.53],[637.43,107.36],[637.43,145.02],[637.43,135.61],[637.43,97.94],[637.43,79.11],[637.43,69.69],[637.43,88.52],[667.14,60.27],[667.14,116.77],[667.14,126.19],[667.14,154.44],[667.14,163.86],[667.14,173.28],[667.14,107.36],[667.14,69.69],[677.05,126.19],[667.14,97.94],[667.14,88.52],[667.14,79.11],[657.24,182.69],[657.24,126.19],[657.24,116.77],[657.24,60.27],[657.24,192.11],[657.24,173.28],[657.24,107.36],[657.24,69.69],[657.24,97.94],[657.24,79.11],[657.24,88.52],[617.63,154.44],[538.4,79.11],[538.4,69.69],[538.4,60.27],[558.21,229.78],[538.4,88.52],[538.4,97.94],[548.31,220.36],[538.4,50.85],[548.31,210.94],[548.31,229.78],[538.4,210.94],[538.4,182.69],[538.4,173.28],[538.4,116.77],[538.4,163.86],[548.31,201.53],[538.4,192.11],[538.4,126.19],[538.4,135.61],[538.4,145.02],[538.4,154.44],[538.4,201.53],[548.31,69.69],[548.31,60.27],[548.31,50.85],[548.31,97.94],[548.31,88.52],[548.31,79.11],[558.21,248.61],[548.31,192.11],[548.31,32.02],[548.31,41.44],[558.21,239.19],[548.31,163.86],[548.31,173.28],[548.31,154.44],[548.31,182.69],[548.31,107.36],[548.31,126.19],[548.31,116.77],[548.31,135.61],[548.31,145.02],[538.4,107.36],[518.6,69.69],[518.6,88.52],[518.6,79.11],[518.6,116.77],[518.6,97.94],[518.6,107.36],[538.4,220.36],[518.6,60.27],[528.5,239.19],[518.6,50.85],[518.6,163.86],[518.6,192.11],[518.6,182.69],[518.6,173.28],[518.6,201.53],[518.6,210.94],[518.6,145.02],[518.6,126.19],[518.6,135.61],[528.5,229.78],[518.6,154.44],[528.5,248.61],[528.5,88.52],[528.5,97.94],[528.5,220.36],[528.5,107.36],[528.5,79.11],[528.5,69.69],[538.4,229.78],[528.5,126.19],[538.4,239.19],[528.5,60.27],[528.5,116.77],[528.5,201.53],[528.5,192.11],[528.5,210.94],[528.5,135.61],[528.5,182.69],[528.5,173.28],[528.5,154.44],[528.5,145.02],[528.5,163.86],[558.21,135.61],[578.02,201.53],[578.02,192.11],[578.02,210.94],[578.02,182.69],[578.02,135.61],[578.02,163.86],[578.02,145.02],[578.02,154.44],[578.02,173.28],[578.02,229.78],[578.02,220.36],[568.11,32.02],[568.11,41.44],[568.11,50.85],[587.92,145.02],[568.11,60.27],[587.92,154.44],[578.02,239.19],[568.11,69.69],[578.02,248.61],[587.92,163.86],[578.02,258.03],[587.92,173.28],[587.92,248.61],[578.02,13.19],[578.02,32.02],[578.02,126.19],[587.92,229.78],[587.92,201.53],[587.92,192.11],[587.92,220.36],[587.92,210.94],[578.02,22.6],[578.02,88.52],[578.02,97.94],[578.02,107.36],[578.02,116.77],[578.02,69.69],[578.02,60.27],[578.02,50.85],[578.02,41.44],[578.02,79.11],[568.11,116.77],[558.21,69.69],[587.92,116.77],[558.21,88.52],[558.21,97.94],[558.21,107.36],[558.21,116.77],[558.21,32.02],[558.21,60.27],[558.21,41.44],[558.21,50.85],[558.21,79.11],[558.21,182.69],[558.21,192.11],[558.21,173.28],[558.21,201.53],[558.21,210.94],[558.21,126.19],[558.21,145.02],[518.6,220.36],[558.21,163.86],[558.21,154.44],[587.92,135.61],[568.11,173.28],[568.11,145.02],[568.11,163.86],[568.11,126.19],[568.11,154.44],[568.11,135.61],[568.11,88.52],[568.11,97.94],[568.11,107.36],[558.21,220.36],[568.11,182.69],[568.11,248.61],[568.11,229.78],[568.11,239.19],[568.11,79.11],[568.11,192.11],[568.11,220.36],[587.92,126.19],[568.11,201.53],[568.11,210.94],[518.6,258.03],[469.08,22.6],[488.89,182.69],[469.08,88.52],[469.08,97.94],[469.08,107.36],[597.82,201.53],[597.82,192.11],[478.98,220.36],[478.98,210.94],[478.98,201.53],[469.08,116.77],[478.98,239.19],[469.08,13.19],[469.08,229.78],[469.08,210.94],[469.08,126.19],[597.82,210.94],[469.08,239.19],[469.08,201.53],[469.08,192.11],[469.08,145.02],[469.08,135.61],[469.08,154.44],[469.08,163.86],[478.98,116.77],[478.98,97.94],[478.98,88.52],[597.82,145.02],[478.98,107.36],[439.37,220.36],[478.98,22.6],[478.98,79.11],[488.89,192.11],[488.89,201.53],[488.89,220.36],[488.89,210.94],[478.98,13.19],[597.82,182.69],[478.98,163.86],[478.98,145.02],[478.98,154.44],[478.98,173.28],[478.98,182.69],[597.82,154.44],[597.82,163.86],[597.82,173.28],[478.98,135.61],[478.98,192.11],[478.98,126.19],[518.6,229.78],[449.27,229.78],[587.92,69.69],[449.27,220.36],[587.92,60.27],[449.27,88.52],[439.37,210.94],[587.92,50.85],[587.92,22.6],[597.82,229.78],[587.92,32.02],[587.92,41.44],[449.27,97.94],[449.27,201.53],[449.27,182.69],[449.27,173.28],[449.27,192.11],[587.92,88.52],[449.27,163.86],[449.27,145.02],[449.27,116.77],[449.27,126.19],[449.27,154.44],[449.27,107.36],[449.27,135.61],[587.92,79.11],[459.18,107.36],[459.18,135.61],[459.18,88.52],[459.18,97.94],[459.18,126.19],[459.18,116.77],[459.18,79.11],[459.18,22.6],[439.37,192.11],[439.37,201.53],[597.82,220.36],[459.18,13.19],[459.18,220.36],[587.92,97.94],[459.18,239.19],[459.18,145.02],[587.92,107.36],[459.18,248.61],[459.18,229.78],[459.18,154.44],[459.18,163.86],[459.18,201.53],[459.18,173.28],[459.18,210.94],[488.89,50.85],[498.79,107.36],[498.79,135.61],[488.89,13.19],[498.79,126.19],[498.79,154.44],[498.79,145.02],[508.69,248.61],[498.79,97.94],[498.79,41.44],[498.79,3.77],[498.79,79.11],[498.79,88.52],[498.79,116.77],[498.79,210.94],[488.89,173.28],[498.79,229.78],[498.79,220.36],[597.82,69.69],[498.79,182.69],[597.82,60.27],[498.79,192.11],[597.82,50.85],[498.79,163.86],[498.79,173.28],[597.82,22.6],[508.69,69.69],[508.69,97.94],[508.69,239.19],[508.69,88.52],[508.69,116.77],[508.69,126.19],[508.69,107.36],[518.6,248.61],[508.69,60.27],[518.6,239.19],[508.69,50.85],[607.73,229.78],[508.69,79.11],[508.69,192.11],[508.69,210.94],[508.69,201.53],[508.69,229.78],[508.69,220.36],[508.69,182.69],[508.69,154.44],[508.69,135.61],[508.69,145.02],[508.69,163.86],[508.69,173.28],[498.79,201.53],[597.82,79.11],[597.82,97.94],[597.82,116.77],[597.82,88.52],[597.82,126.19],[488.89,107.36],[597.82,135.61],[488.89,116.77],[488.89,60.27],[488.89,79.11],[488.89,88.52],[488.89,22.6],[597.82,107.36],[488.89,41.44],[449.27,210.94],[488.89,154.44],[488.89,97.94],[488.89,126.19],[488.89,145.02],[488.89,163.86],[488.89,135.61],[132.37,60.27],[132.37,182.69],[132.37,50.85],[132.37,192.11],[132.37,69.69],[132.37,154.44],[132.37,173.28],[132.37,145.02],[132.37,126.19],[132.37,135.61],[132.37,163.86],[132.37,79.11],[122.47,182.69],[112.56,50.85],[112.56,22.6],[122.47,88.52],[132.37,116.77],[122.47,13.19],[132.37,107.36],[132.37,210.94],[132.37,97.94],[122.47,192.11],[132.37,88.52],[122.47,201.53],[122.47,210.94],[132.37,201.53],[142.27,173.28],[122.47,41.44],[122.47,50.85],[142.27,163.86],[142.27,145.02],[142.27,154.44],[132.37,13.19],[122.47,60.27],[122.47,69.69],[142.27,192.11],[122.47,107.36],[142.27,201.53],[122.47,97.94],[142.27,182.69],[122.47,79.11],[142.27,210.94],[142.27,126.19],[142.27,135.61],[122.47,116.77],[142.27,22.6],[122.47,173.28],[142.27,88.52],[142.27,3.77],[132.37,3.77],[122.47,163.86],[142.27,13.19],[142.27,69.69],[142.27,107.36],[142.27,97.94],[122.47,22.6],[142.27,116.77],[122.47,135.61],[122.47,145.02],[122.47,126.19],[122.47,154.44],[102.66,201.53],[53.15,107.36],[53.15,97.94],[63.05,116.77],[63.05,126.19],[53.15,79.11],[53.15,88.52],[53.15,116.77],[43.24,97.94],[43.24,107.36],[43.24,88.52],[43.24,116.77],[43.24,79.11],[72.95,88.52],[72.95,97.94],[72.95,107.36],[72.95,79.11],[82.86,145.02],[72.95,116.77],[63.05,88.52],[63.05,107.36],[63.05,97.94],[72.95,126.19],[63.05,79.11],[23.44,135.61],[13.53,69.69],[13.53,79.11],[23.44,126.19],[13.53,88.52],[82.86,135.61],[23.44,116.77],[13.53,126.19],[3.63,97.94],[13.53,107.36],[13.53,116.77],[13.53,97.94],[33.34,107.36],[33.34,97.94],[33.34,69.69],[33.34,79.11],[33.34,116.77],[33.34,88.52],[23.44,79.11],[23.44,88.52],[23.44,97.94],[33.34,126.19],[23.44,107.36],[23.44,69.69],[112.56,201.53],[102.66,126.19],[102.66,41.44],[112.56,60.27],[112.56,192.11],[102.66,50.85],[102.66,88.52],[102.66,107.36],[102.66,116.77],[102.66,79.11],[112.56,182.69],[102.66,97.94],[112.56,210.94],[112.56,97.94],[112.56,173.28],[112.56,88.52],[112.56,116.77],[112.56,79.11],[112.56,107.36],[112.56,163.86],[112.56,154.44],[112.56,135.61],[112.56,126.19],[112.56,145.02],[92.76,154.44],[92.76,135.61],[92.76,145.02],[92.76,126.19],[82.86,126.19],[92.76,116.77],[82.86,79.11],[82.86,107.36],[92.76,107.36],[82.86,116.77],[82.86,88.52],[82.86,97.94],[102.66,182.69],[102.66,173.28],[102.66,163.86],[102.66,135.61],[92.76,97.94],[102.66,154.44],[102.66,145.02],[102.66,192.11],[92.76,79.11],[92.76,88.52],[92.76,69.69],[191.79,3.77],[221.5,3.77],[221.5,13.19],[231.4,154.44],[221.5,50.85],[152.18,210.94],[231.4,135.61],[221.5,60.27],[221.5,97.94],[221.5,88.52],[221.5,79.11],[231.4,145.02],[241.31,79.11],[241.31,88.52],[241.31,69.69],[241.31,50.85],[241.31,60.27],[231.4,32.02],[231.4,41.44],[241.31,97.94],[231.4,50.85],[231.4,60.27],[211.6,88.52],[241.31,41.44],[211.6,145.02],[211.6,135.61],[211.6,126.19],[211.6,97.94],[211.6,154.44],[201.69,3.77],[211.6,163.86],[221.5,135.61],[211.6,173.28],[201.69,13.19],[221.5,173.28],[211.6,3.77],[221.5,154.44],[221.5,145.02],[211.6,13.19],[211.6,32.02],[211.6,79.11],[211.6,69.69],[211.6,22.6],[221.5,126.19],[271.02,41.44],[271.02,13.19],[241.31,32.02],[271.02,22.6],[271.02,32.02],[271.02,60.27],[271.02,88.52],[271.02,69.69],[261.11,13.19],[271.02,79.11],[280.92,41.44],[261.11,22.6],[280.92,32.02],[280.92,22.6],[290.82,22.6],[290.82,32.02],[280.92,60.27],[280.92,69.69],[280.92,79.11],[280.92,50.85],[280.92,88.52],[271.02,50.85],[251.21,88.52],[251.21,79.11],[251.21,69.69],[251.21,60.27],[251.21,50.85],[251.21,97.94],[241.31,22.6],[251.21,116.77],[251.21,41.44],[261.11,32.02],[251.21,107.36],[261.11,50.85],[261.11,60.27],[251.21,32.02],[261.11,69.69],[261.11,97.94],[251.21,22.6],[261.11,88.52],[261.11,79.11],[201.69,22.6],[162.08,97.94],[162.08,135.61],[162.08,107.36],[162.08,79.11],[162.08,182.69],[162.08,145.02],[162.08,173.28],[162.08,163.86],[162.08,69.69],[162.08,154.44],[162.08,88.52],[171.98,163.86],[171.98,192.11],[171.98,154.44],[171.98,107.36],[201.69,32.02],[162.08,32.02],[162.08,3.77],[162.08,50.85],[171.98,201.53],[171.98,210.94],[152.18,154.44],[152.18,145.02],[171.98,97.94],[152.18,135.61],[152.18,163.86],[152.18,126.19],[152.18,192.11],[152.18,201.53],[152.18,116.77],[152.18,182.69],[152.18,173.28],[152.18,79.11],[152.18,3.77],[152.18,32.02],[162.08,210.94],[162.08,201.53],[152.18,50.85],[152.18,88.52],[152.18,97.94],[152.18,107.36],[162.08,192.11],[171.98,145.02],[191.79,163.86],[191.79,60.27],[191.79,13.19],[191.79,22.6],[191.79,116.77],[191.79,126.19],[171.98,88.52],[201.69,182.69],[191.79,154.44],[191.79,135.61],[191.79,69.69],[201.69,116.77],[201.69,79.11],[201.69,69.69],[201.69,41.44],[201.69,126.19],[201.69,145.02],[201.69,163.86],[201.69,154.44],[201.69,173.28],[201.69,135.61],[191.79,145.02],[171.98,13.19],[171.98,3.77],[191.79,173.28],[181.89,210.94],[181.89,201.53],[181.89,220.36],[171.98,79.11],[171.98,32.02],[171.98,50.85],[171.98,41.44],[181.89,192.11],[191.79,192.11],[191.79,201.53],[181.89,41.44],[181.89,163.86],[191.79,182.69],[181.89,79.11],[181.89,145.02],[181.89,154.44],[181.89,88.52]];
-
-  const MAP_W = 750;
-  const MAP_H = 450;
-  const SQUARE_SIZE = 12;
-  const CORNER_RADIUS = 4;
-  const TUNED_SCALE = 1.6;
-  const HOVER_RADIUS_BASE = 80;
-  const FADE_RINGS = 3;
-  const RING_WIDTH_BASE = ((9.9 + 9.42) / 2) * TUNED_SCALE;
-
-  const BASE_COLOR = [222, 222, 222];
-  const HOVER_COLOR = [95, 203, 232];
-
-  let scale = 1;
-  let offsetX = 0;
-  let offsetY = 0;
-  let mouseX = -9999;
-  let mouseY = -9999;
-
-  function lerpColor(a, b, t) {
-    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-  }
-
-  function resize() {
-    const rect = section.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    scale = Math.max(rect.width / MAP_W, rect.height / MAP_H);
-    offsetX = (rect.width - MAP_W * scale) / 2;
-    offsetY = (rect.height - MAP_H * scale) / 2;
-    draw();
-  }
-
-  function draw() {
-    const rect = section.getBoundingClientRect();
-    ctx.clearRect(0, 0, rect.width, rect.height);
-
-    const rel = scale / TUNED_SCALE;
-    const hoverRadius = HOVER_RADIUS_BASE * rel;
-    const fadeWidth = RING_WIDTH_BASE * FADE_RINGS * rel;
-    const squareSize = SQUARE_SIZE * rel;
-    const cornerRadius = CORNER_RADIUS * rel;
-
-    for (let i = 0; i < DOTS.length; i++) {
-      const dx = DOTS[i][0] * scale + offsetX;
-      const dy = DOTS[i][1] * scale + offsetY;
-
-      const distX = dx - mouseX;
-      const distY = dy - mouseY;
-      const dist = Math.sqrt(distX * distX + distY * distY);
-
-      let color = BASE_COLOR;
-      if (dist <= hoverRadius) {
-        const edgeDist = hoverRadius - dist;
-        const t = edgeDist >= fadeWidth ? 1 : edgeDist / fadeWidth;
-        color = lerpColor(BASE_COLOR, HOVER_COLOR, t);
-      }
-
-      ctx.beginPath();
-      ctx.roundRect(dx - squareSize / 2, dy - squareSize / 2, squareSize, squareSize, cornerRadius);
-      ctx.fillStyle = `rgb(${color[0] | 0}, ${color[1] | 0}, ${color[2] | 0})`;
-      ctx.fill();
-    }
-  }
-
-  canvas.addEventListener('mousemove', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    mouseX = e.clientX - rect.left;
-    mouseY = e.clientY - rect.top;
-    draw();
-  });
-
-  canvas.addEventListener('mouseleave', () => {
-    mouseX = -9999;
-    mouseY = -9999;
-    draw();
-  });
-
-  resize();
-
-  let mapResizeTicking = false;
-  window.addEventListener('resize', () => {
-    if (mapResizeTicking) return;
-    mapResizeTicking = true;
-    requestAnimationFrame(() => {
-      resize();
-      mapResizeTicking = false;
-    });
-  });
-}
-
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  initCredibilityMap();
-} else {
-  window.addEventListener('DOMContentLoaded', initCredibilityMap);
-}
-
 // ── Credibility numbers: count up from 0 once the section scrolls into
 // view. Eased fast-to-slow (cubic ease-out), fires once via
 // IntersectionObserver so re-scrolling past it doesn't replay it.
-function initCredibilityCountUp() {
-  const values = document.querySelectorAll('.numbers-card__value');
-  const section = document.getElementById('credibility');
+function initCredibilityCountUp(section, values) {
   if (!values.length || !section) return;
 
   const reduceMotionCount = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -506,8 +376,13 @@ function initCredibilityCountUp() {
   // read on every scroll tick has no such lag.
   let hasCounted = false;
   let countTicking = false;
+  let lastScrollY = window.scrollY;
 
   function checkCountState() {
+    const currentScrollY = window.scrollY;
+    const scrollingUp = currentScrollY < lastScrollY;
+    lastScrollY = currentScrollY;
+
     const rect = section.getBoundingClientRect();
     const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
     const visibleRatio = rect.height > 0 ? Math.max(0, visibleHeight) / rect.height : 0;
@@ -515,7 +390,14 @@ function initCredibilityCountUp() {
     if (!hasCounted && visibleRatio >= 0.4) {
       values.forEach(animateValue);
       hasCounted = true;
-    } else if (hasCounted && rect.top > 0) {
+    } else if (hasCounted && scrollingUp && rect.top > 0) {
+      // `rect.top > 0` alone is ambiguous — it's also true while the section
+      // is still entering from below on the way down (on a viewport shorter
+      // than ~2.5x the section's height, it can cross the 40%-visible
+      // trigger while still short of the top edge), which reset the count
+      // right after it had just started. Requiring scrollingUp too makes
+      // this only fire on the way back up, once the section has fully
+      // retreated below the viewport.
       values.forEach(resetValue);
       hasCounted = false;
     }
@@ -533,19 +415,1059 @@ function initCredibilityCountUp() {
   checkCountState();
 }
 
+// Numbers Tell the Story v2's count-up.
+function bootCredibilityCountUp() {
+  initCredibilityCountUp(document.getElementById('numbers-alt'), document.querySelectorAll('#numbers-alt .numtell__value'));
+}
+
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  initCredibilityCountUp();
+  bootCredibilityCountUp();
 } else {
-  window.addEventListener('DOMContentLoaded', initCredibilityCountUp);
+  window.addEventListener('DOMContentLoaded', bootCredibilityCountUp);
+}
+
+// ── Numbers Tell the Story v2: "Numbers" handwriting draw-on, once ───────
+// Same safe-by-default pattern as the testimonial laurels: the SVG's own
+// CSS already renders it fully drawn (static) by default, so `.is-armed`
+// (which hides it, ready to animate) only ever gets added here, right
+// before observing — if IntersectionObserver is unsupported or motion is
+// reduced, it simply stays fully drawn instead of never appearing.
+function initNumbersHandwriting() {
+  const svg = document.getElementById('numtell-number-anim');
+  if (!svg) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (typeof IntersectionObserver === 'undefined') return;
+
+  svg.classList.add('is-armed');
+
+  // Small delay before actually starting the draw-on: firing the instant
+  // it crosses 40% visible had it finishing (1s draw) well before the
+  // section settles into view, reading as already-done rather than drawn.
+  // The delay is intentionally shorter than the count-up's own 1400ms
+  // (see initCredibilityCountUp) so both finish at roughly the same time
+  // instead of the handwriting looking rushed relative to the numbers.
+  const START_DELAY = 400;
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      observer.unobserve(entry.target);
+      window.setTimeout(() => svg.classList.add('is-playing'), START_DELAY);
+    });
+  }, { threshold: 0.4 });
+
+  observer.observe(svg);
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  initNumbersHandwriting();
+} else {
+  window.addEventListener('DOMContentLoaded', initNumbersHandwriting);
+}
+
+// ── Numbers Tell the Story v2: topography WebGL background ──────────────
+// Ported from 素材/React拓樸變形蟲背景 (React Bits "Topography", OGL) — same
+// shader and CONFIG values, verbatim. Loaded via dynamic import wrapped in
+// try/catch, same defensive pattern as the hero glass token: if the OGL
+// CDN is blocked/slow/broken, `.topo-bg`'s plain CSS background (already
+// the section's own flat color) is all that's lost, never the section
+// itself. Boots every `[data-topography]` element found, not just this
+// one, so it stays reusable if another section adopts it later.
+async function initTopographyBackgrounds() {
+  const containers = [...document.querySelectorAll('[data-topography]')];
+  if (!containers.length) return;
+
+  let OGL;
+  try {
+    OGL = await import('https://cdn.jsdelivr.net/npm/ogl@1.0.11/+esm');
+  } catch (err) {
+    console.warn('Numbers Tell the Story v2: OGL failed to load, keeping the flat background color.', err);
+    return;
+  }
+
+  const { Renderer, Program, Mesh, Triangle } = OGL;
+
+  const CONFIG = {
+    ground: '#F1F1F1',
+    // Numbers Tell the Story's own ground and line color stay these light
+    // values for its whole (now full-viewport) height. The dark tones below
+    // are only for reference here — the actual light↔dark swap is a
+    // scroll-driven, whole-screen color flip owned by initSeamColorFade()
+    // further down (not a spatial gradient tied to this CONFIG object),
+    // which drives both the container's flat CSS background and, every
+    // frame, uSeamT below for the contour line color.
+    groundDark: '#1C1D1E',
+    lineColor: '#E3E3E3',
+    lineColorDark: '#3A3C3E',
+    speed: 0.86,
+    morphAmount: 0.54,
+    morphSpeed: 0.08,
+    bands: 4.0,
+    thickness: 0.002,
+    glow: 0.13,
+    contrast: 2.7,
+    dprCap: 2,
+  };
+
+  const hexToRgb = (hex) => {
+    const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!r) return [1, 1, 1];
+    return [parseInt(r[1], 16) / 255, parseInt(r[2], 16) / 255, parseInt(r[3], 16) / 255];
+  };
+
+  const vertex = `#version 300 es
+in vec2 position;
+void main() { gl_Position = vec4(position, 0.0, 1.0); }
+`;
+
+  // Fragment shader — verbatim from React Bits "Topography" (ogl).
+  const fragment = `#version 300 es
+precision highp float;
+uniform vec2 iResolution;
+uniform float iTime;
+uniform float uMorphAmount;
+uniform float uBands;
+uniform float uThickness;
+uniform float uScale;
+uniform float uPixelSize;
+uniform float uGlow;
+uniform float uColorMode;
+uniform float uContrast;
+uniform float uBrightness;
+uniform float uFillBands;
+uniform float uOpacity;
+uniform float uLightMode;
+uniform vec3 uLow;
+uniform vec3 uMid;
+uniform vec3 uHigh;
+uniform vec3 uLineBottom;
+uniform float uSeamT;
+uniform vec2 uMouse;
+uniform float uMouseEnabled;
+uniform float uMouseRadius;
+uniform float uMouseStrength;
+uniform float uMouseActive;
+uniform float uGrain;
+uniform float uGrainIntensity;
+uniform vec4 uCtrlA;
+uniform vec4 uCtrlB;
+uniform vec4 uCtrlC;
+uniform vec4 uCtrlD;
+out vec4 fragColor;
+
+float bez(float t, vec4 c) {
+  float w = 6.2831853 * t;
+  return 0.5 * (c.x * sin(w) + c.y * cos(w) + c.z * sin(2.0 * w) + c.w * cos(2.0 * w));
+}
+
+float field(vec2 uv) {
+  vec2 a = vec2(bez(uv.x, uCtrlA), bez(uv.x, uCtrlB));
+  vec2 b = vec2(bez(uv.y, uCtrlC), bez(uv.y, uCtrlD));
+  return distance(a, b);
+}
+
+vec3 elevationColor(float e) {
+  vec3 c = mix(uLow, uMid, smoothstep(0.0, 0.5, e));
+  c = mix(c, uHigh, smoothstep(0.5, 1.0, e));
+  return c;
+}
+
+void main() {
+  vec2 res = iResolution.xy;
+  vec2 uv = gl_FragCoord.xy / res;
+
+  vec2 suv = (uv - 0.5) / max(uScale, 0.001) + 0.5;
+
+  vec2 sampleUv = suv;
+  if (uPixelSize > 1.0) {
+    vec2 px = res / uPixelSize;
+    sampleUv = (floor(suv * px) + 0.5) / px;
+  }
+
+  float fv = field(sampleUv);
+
+  if (uMouseEnabled > 0.5) {
+    vec2 d = uv - uMouse;
+    d.x *= res.x / max(res.y, 1.0);
+    float r = max(uMouseRadius, 0.001);
+    float bump = exp(-dot(d, d) / (r * r)) * uMouseStrength * uMouseActive;
+    fv += bump;
+  }
+
+  float f = fv * uBands;
+  float frac = fract(f);
+  float lineDist = min(frac, 1.0 - frac);
+
+  float aa = fwidth(f) + 0.0001;
+  float mask = 1.0 - smoothstep(uThickness - aa, uThickness + aa, lineDist);
+
+  float glowR = uThickness + uGlow * 0.5 + aa;
+  float glow = (1.0 - smoothstep(uThickness, glowR, lineDist)) * step(0.0001, uGlow);
+
+  float elev = clamp(fv / (uMorphAmount * 2.5 + 0.001), 0.0, 1.0);
+
+  // Numbers Tell the Story → Connect: this canvas spans both sections, but
+  // the light/dark swap is NOT a spatial gradient across it — the whole
+  // visible screen flips together, driven by how far you've scrolled past
+  // the boundary (see the JS-side scroll listener that sets uSeamT every
+  // frame). uSeamT defaults to 0 wherever there's no boundary, so this is a
+  // no-op (always the flat light line) elsewhere.
+  vec3 lineCol;
+  if (uColorMode < 0.5) {
+    lineCol = mix(elevationColor(elev), uLineBottom, uSeamT);
+  } else if (uColorMode < 1.5) {
+    lineCol = uMid;
+  } else {
+    float parity = mod(floor(f), 2.0);
+    lineCol = mix(uMid, uHigh, parity);
+  }
+
+  float coverage = clamp(mask + glow * 0.55, 0.0, 1.0);
+  coverage = pow(coverage, max(uContrast, 0.001));
+
+  vec3 outColor = lineCol;
+  float outAlpha = coverage;
+
+  if (uFillBands > 0.5) {
+    vec3 fillCol = elevationColor(elev);
+    float fillA = 0.1 * elev;
+    outColor = mix(fillCol, lineCol, coverage);
+    outAlpha = clamp(coverage + fillA, 0.0, 1.0);
+  }
+
+  if (uGrain > 0.5) {
+    float g = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233)) + iTime) * 43758.5453);
+    outAlpha += (g - 0.5) * uGrainIntensity;
+  }
+
+  outColor *= uBrightness;
+  outColor = clamp(outColor, 0.0, 1.0);
+
+  float a = clamp(outAlpha, 0.0, 1.0) * uOpacity;
+  if (uLightMode > 0.5) {
+    float peak = max(outColor.r, max(outColor.g, outColor.b));
+    vec3 chroma = pow(clamp(outColor / max(peak, 0.0001), 0.0, 1.0), vec3(1.18));
+    fragColor = vec4(mix(vec3(1.0), chroma, a * 0.94), 1.0);
+  } else {
+    fragColor = vec4(outColor * a, a);
+  }
+}
+`;
+
+  const CTRL_INDICES = [
+    [1, -2, 3, -4],
+    [9, -8, 7, -6],
+    [5, 2, 5, -5],
+    [-1, -3, 8, 9],
+  ];
+
+  // There's a single [data-topography] canvas on the page — shared by
+  // Numbers Tell the Story through the feature cards, position:sticky (see
+  // .topo-bg in styles.css) so it's physically the same never-scrolling
+  // canvas the whole way, never a seam between separately-scrolling
+  // instances. The light→dark flip is NOT a spatial gradient painted across
+  // it — the whole visible screen flips together, driven by scroll
+  // position. initNumbersStage() (below, outside the WebGL-dependent code
+  // so it also runs if OGL fails) owns that scroll listener: it sets the
+  // container's flat CSS background directly every tick and stashes the
+  // live 0..1 progress on container._topoSeamT, which the render loop below
+  // just reads each frame to drive uSeamT — no coordination needed beyond
+  // that one shared property.
+  function initTopography(container) {
+    const line = new Float32Array(hexToRgb(CONFIG.lineColor));
+
+    const renderer = new Renderer({
+      webgl: 2,
+      alpha: true,
+      premultipliedAlpha: true,
+      antialias: false,
+      dpr: Math.min(window.devicePixelRatio || 1, CONFIG.dprCap),
+    });
+    const gl = renderer.gl;
+    gl.clearColor(0, 0, 0, 0);
+    const canvas = gl.canvas;
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.display = 'block';
+    container.appendChild(canvas);
+
+    const geometry = new Triangle(gl);
+    const program = new Program(gl, {
+      vertex,
+      fragment,
+      uniforms: {
+        iTime: { value: 0 },
+        iResolution: { value: new Float32Array([1, 1]) },
+        uSpeed: { value: CONFIG.speed },
+        uMorphAmount: { value: CONFIG.morphAmount },
+        uMorphSpeed: { value: CONFIG.morphSpeed },
+        uBands: { value: CONFIG.bands },
+        uThickness: { value: CONFIG.thickness },
+        uScale: { value: 1.0 },
+        uPixelSize: { value: 1.0 },
+        uGlow: { value: CONFIG.glow },
+        uColorMode: { value: 0.0 },
+        uContrast: { value: CONFIG.contrast },
+        uBrightness: { value: 1.0 },
+        uFillBands: { value: 0.0 },
+        uOpacity: { value: 1.0 },
+        uLightMode: { value: 0.0 },
+        uGrain: { value: 0.0 },
+        uGrainIntensity: { value: 0.0 },
+        uLow: { value: new Float32Array(line) },
+        uMid: { value: new Float32Array(line) },
+        uHigh: { value: new Float32Array(line) },
+        uLineBottom: { value: new Float32Array(hexToRgb(CONFIG.lineColorDark)) },
+        uSeamT: { value: 0.0 },
+        uMouse: { value: new Float32Array([0.5, 0.5]) },
+        uMouseEnabled: { value: 0.0 },
+        uMouseRadius: { value: 0.3 },
+        uMouseStrength: { value: 0.4 },
+        uMouseActive: { value: 0.0 },
+        uCtrlA: { value: new Float32Array([0, 0, 0, 0]) },
+        uCtrlB: { value: new Float32Array([0, 0, 0, 0]) },
+        uCtrlC: { value: new Float32Array([0, 0, 0, 0]) },
+        uCtrlD: { value: new Float32Array([0, 0, 0, 0]) },
+      },
+    });
+    const mesh = new Mesh(gl, { geometry, program });
+    const u = program.uniforms;
+    const ctrlArrays = [u.uCtrlA.value, u.uCtrlB.value, u.uCtrlC.value, u.uCtrlD.value];
+
+    const setSize = () => {
+      const rect = container.getBoundingClientRect();
+      renderer.setSize(Math.max(1, Math.floor(rect.width)), Math.max(1, Math.floor(rect.height)));
+      u.iResolution.value[0] = gl.drawingBufferWidth;
+      u.iResolution.value[1] = gl.drawingBufferHeight;
+      renderer.render({ scene: mesh });
+    };
+    const ro = new ResizeObserver(setSize);
+    ro.observe(container);
+    setSize();
+
+    const updateCtrls = (time) => {
+      const ma = u.uMorphAmount.value;
+      const sp = u.uSpeed.value;
+      const msp = u.uMorphSpeed.value;
+      for (let g = 0; g < 4; g++) {
+        const arr = ctrlArrays[g];
+        const idx = CTRL_INDICES[g];
+        for (let j = 0; j < 4; j++) {
+          const i = idx[j];
+          arr[j] = ma * Math.sin(time * sp * Math.sin(i * msp) + i);
+        }
+      }
+    };
+
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let raf = 0;
+    let isVisible = true;
+    let isPageVisible = !document.hidden;
+    const t0 = performance.now();
+
+    const loop = (t) => {
+      const time = (t - t0) * 0.001;
+      u.iTime.value = time;
+      u.uSeamT.value = container._topoSeamT || 0;
+      updateCtrls(time);
+      renderer.render({ scene: mesh });
+      raf = requestAnimationFrame(loop);
+    };
+    const start = () => {
+      if (!reduce && isVisible && isPageVisible && raf === 0) raf = requestAnimationFrame(loop);
+    };
+    const stop = () => {
+      if (raf !== 0) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+        isVisible ? start() : stop();
+      },
+      { threshold: 0 }
+    );
+    io.observe(container);
+
+    const onVisibility = () => {
+      isPageVisible = !document.hidden;
+      isPageVisible ? start() : stop();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    if (reduce) {
+      u.iTime.value = 6.0;
+      updateCtrls(6.0);
+      renderer.render({ scene: mesh });
+    } else {
+      start();
+    }
+
+    container._topographyDestroy = () => {
+      stop();
+      ro.disconnect();
+      io.disconnect();
+      document.removeEventListener('visibilitychange', onVisibility);
+      try {
+        container.removeChild(canvas);
+      } catch (e) {}
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      delete container._topographyDestroy;
+    };
+  }
+
+  try {
+    containers.forEach((el) => {
+      if (!el._topographyDestroy) initTopography(el);
+    });
+  } catch (err) {
+    console.warn('Numbers Tell the Story v2: topography background failed to initialize.', err);
+  }
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  initTopographyBackgrounds();
+} else {
+  window.addEventListener('DOMContentLoaded', initTopographyBackgrounds);
+}
+
+// ── Numbers Tell the Story v2: label reveal (reuses Expertise's kinetic
+// sweep — .kl / .kl__text / .kl__block, same blue #2479cb block, same
+// left-to-right sweep keyframes). Each label gets its own .kl unit;
+// `.is-revealing` goes on the section (not each .kl), matching how the
+// original CSS selectors are written (`.is-revealing .kl__block`, a
+// descendant combinator) — all three labels sweep together, lightly
+// staggered, once the section scrolls into view.
+function initNumtellLabelReveal() {
+  const section = document.getElementById('numbers-alt');
+  const labels = section ? [...section.querySelectorAll('.numtell__label')] : [];
+  if (!labels.length) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (typeof IntersectionObserver === 'undefined') return;
+
+  const DURATION = 0.5;
+  const STAGGER = 0.18;
+
+  labels.forEach((label, i) => {
+    const text = label.textContent;
+    label.textContent = '';
+    label.setAttribute('aria-label', text);
+    const outer = document.createElement('span');
+    outer.className = 'kl';
+    outer.setAttribute('aria-hidden', 'true');
+    outer.style.setProperty('--kd', `${i * STAGGER}s`);
+    outer.style.setProperty('--kdur', `${DURATION}s`);
+    const inner = document.createElement('span');
+    inner.className = 'kl__text';
+    inner.textContent = text;
+    const block = document.createElement('span');
+    block.className = 'kl__block';
+    outer.append(inner, block);
+    label.appendChild(outer);
+  });
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      section.classList.add('is-revealing');
+      observer.unobserve(entry.target);
+    });
+  }, { threshold: 0.4 });
+  observer.observe(section);
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  initNumtellLabelReveal();
+} else {
+  window.addEventListener('DOMContentLoaded', initNumtellLabelReveal);
+}
+
+// ── Numbers Tell the Story: scroll-jacked hold → exit → background flip ──
+// #numbers-pin is a tall wrapper; .numbers-sticky (its pinned child) holds
+// Numbers Tell the Story's content in place for HOLD_SCROLL px, then floats
+// it up + fades it over EXIT_SCROLL px, and only once that's fully done
+// does the shared background flip from light to dark over FLIP_SCROLL px —
+// sequential, not simultaneous, and deliberately short so the flip itself
+// reads as fast. Sets the shared .topo-bg container's flat CSS background
+// directly every tick (works even if the WebGL layer never loads) and
+// stashes the live 0..1 progress on container._topoSeamT, which
+// initTopography's own render loop (above) reads each frame to blend the
+// contour line color the same way. Independent of the WebGL init — runs
+// whether or not OGL ever loads — and calls onSeamComplete() once, the
+// moment the flip finishes, so What We Do's own reveal (initWwdSequence,
+// below) can key off exactly that instead of guessing.
+function initNumbersStage(onSeamComplete) {
+  const pin = document.getElementById('numbers-pin');
+  const content = document.getElementById('numbers-alt');
+  const container = document.querySelector('[data-topography]');
+  const storyWrap = document.getElementById('story');
+  if (!pin || !content || !container) return;
+
+  // Always runs, even under prefers-reduced-motion — this owns the only
+  // thing standing between the shared canvas and its CSS gradient fallback
+  // (see the container.style.background line below), so skipping it
+  // entirely would bring back exactly the two-tone seam this whole
+  // rewrite exists to remove. Reduced motion instead shrinks the hold/exit/
+  // flip distances to near-zero (1px, not 0 — avoids a divide-by-zero) so
+  // the same formulas produce an imperceptibly fast snap instead of a
+  // smooth animation, rather than branching into separate logic.
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const HOLD_SCROLL = reduce ? 0 : 420; // Numbers Tell the Story just sits there — long enough that even a hard/fast scroll finishes the handwriting draw-on + count-up (~1.4s of real animation) before the exit fade can start
+  const EXIT_SCROLL = reduce ? 1 : 350; // then floats up + fades
+  const FLIP_SCROLL = reduce ? 1 : 200; // then, and only then, the background flips — kept short on purpose
+  const RISE_DISTANCE = reduce ? 0 : 60;
+  const GROUND_LIGHT = [241, 241, 241]; // #F1F1F1
+  const GROUND_DARK = [28, 29, 30]; // #1C1D1E
+
+  function mixRgb(a, b, t) {
+    const r = Math.round(a[0] + (b[0] - a[0]) * t);
+    const g = Math.round(a[1] + (b[1] - a[1]) * t);
+    const b2 = Math.round(a[2] + (b[2] - a[2]) * t);
+    return `rgb(${r}, ${g}, ${b2})`;
+  }
+
+  function measure() {
+    pin.style.height = `${window.innerHeight + HOLD_SCROLL + EXIT_SCROLL + FLIP_SCROLL}px`;
+  }
+
+  let fired = false;
+  let ticking = false;
+
+  function update() {
+    const p = Math.max(0, -pin.getBoundingClientRect().top);
+
+    const exitP = Math.max(0, p - HOLD_SCROLL);
+    const exitT = Math.min(1, exitP / EXIT_SCROLL);
+    content.style.opacity = String(1 - exitT);
+    content.style.transform = `translateY(${-exitT * RISE_DISTANCE}px)`;
+
+    const flipP = Math.max(0, p - HOLD_SCROLL - EXIT_SCROLL);
+    const flipT = Math.min(1, flipP / FLIP_SCROLL);
+    container.style.background = mixRgb(GROUND_LIGHT, GROUND_DARK, flipT);
+    container._topoSeamT = flipT;
+
+    if (flipT >= 1 && !fired) {
+      fired = true;
+      if (onSeamComplete) onSeamComplete();
+    }
+
+    // .topo-bg (position:sticky + margin-bottom:-100vh) keeps rendering
+    // roughly 100vh past .story-wrap's real bottom edge in this Chrome
+    // build — a sticky-positioning quirk with the negative-margin trick —
+    // which would otherwise paint over whatever section follows (Expertise)
+    // and hide its dark-on-light heading text under the canvas's dark
+    // background. Explicitly hiding it here, the moment .story-wrap's own
+    // box has scrolled past the viewport, sidesteps the quirk directly
+    // instead of via an overflow:hidden ancestor (which stops the overrun
+    // but also strips .topo-bg of its stickiness entirely — see the comment
+    // on .topo-bg in styles.css for why that was worse).
+    // A plain hard visibility flip right at the boundary pixel showed up as
+    // a one-frame flash of the Expertise section underneath (worse on
+    // mobile, where the heading and first video sit in the same initial
+    // viewport) — the sticky quirk this exists to route around means the
+    // browser's own paint isn't perfectly in sync with what getBoundingClientRect
+    // reports on the same frame, so a hard cutoff has no cushion for that
+    // mismatch. Fading opacity out over a small zone before the boundary,
+    // and only applying `visibility: hidden` once that fade has already
+    // reached 0, means any one-frame lag lands on an already-invisible
+    // element instead of a fully-opaque one.
+    if (storyWrap) {
+      const FADE_ZONE = 60;
+      const bottom = storyWrap.getBoundingClientRect().bottom;
+      const fadeT = Math.max(0, Math.min(1, bottom / FADE_ZONE));
+      container.style.opacity = String(fadeT);
+      container.style.visibility = bottom <= 0 ? 'hidden' : 'visible';
+    }
+
+    ticking = false;
+  }
+
+  measure();
+  update();
+
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    },
+    { passive: true }
+  );
+
+  window.addEventListener('resize', () => {
+    measure();
+    update();
+  });
+}
+
+// ── What We Do: one continuous experience under a single heading ────────
+// The title card (heading + line + rotating blue tag, Figma node 273:1080)
+// and the six feature cards (Figma node 273:1136) are ONE experience, not
+// two separate sections. #wwd2 is a tall wrapper; .wwd2-sticky (its one
+// pinned child, plain CSS position:sticky, spans this whole height) is what
+// makes everything inside feel "stuck" while these phases play out, each
+// consuming its own slice of scroll:
+//   ENTRANCE_HOLD_SCROLL — heading, then line, then tag fade in in order
+//     (CSS, see styles.css), held in place the whole time by a translateY
+//     on .wwd2-title-group so the group reads as vertically centered.
+//   TAG_EXIT_SCROLL — the tag fades + lifts a little (a small local move,
+//     not a real scroll-away) — comfortably done before it would ever
+//     reach the heading, since the group hasn't started moving yet.
+//   REPOSITION_SCROLL — .wwd2-title-group's translateY eases back to 0,
+//     physically carrying the (now tag-less) heading up to this flex
+//     column's own resting spot (top:120px, via padding-top) — this is
+//     what makes it feel like it "sticks" once the cards take over.
+//   CARD_ENTRANCE (per card, staggered, only starts once REPOSITION_SCROLL
+//     is fully done — waiting until the heading has actually settled at the
+//     top avoids the cards sliding in underneath/over it while it's still
+//     moving) — each card first eases quickly to a "parked" spot partway
+//     in (CARD_PARK_SCROLL of scroll, fast-to-slow), then needs further,
+//     roughly 1:1 scrolling (CARD_SETTLE_SCROLL) to glide the rest of the
+//     way into place — scroll-driven throughout, not a timed animation, so
+//     it never runs ahead of how much the user has actually scrolled.
+//   then the remaining scroll room slides .wwd2-track left until the sixth
+//     card clears the right padding.
+function initWwdSequence() {
+  const pin = document.getElementById('wwd2');
+  const sticky = pin && pin.querySelector('.wwd2-sticky');
+  const titleGroup = pin && pin.querySelector('.wwd2-title-group');
+  const tag = pin && pin.querySelector('.connect__tag');
+  const tagWrap = pin && pin.querySelector('.wwd2-tag-wrap');
+  const viewport = pin && pin.querySelector('.wwd2-cards-viewport');
+  const track = document.getElementById('wwd2-track');
+  const cards = track ? [...track.children] : [];
+  if (!pin || !sticky || !titleGroup || !tag || !viewport || !track || !cards.length) return;
+
+  const TAG_TEXT = 'to Connect.';
+  const CHAR_STAGGER = 0.03;
+
+  const ENTRANCE_HOLD_SCROLL = 420; // heading → line → tag fade in, all centered, THEN a bit of dwell before tag exit is allowed to start (was 300 — too easy to blow straight past "to Connect." on a fast scroll before it even registered)
+  const REVEAL_START_SCROLL = 30; // wwd2-pin's own scroll must have started (i.e. .wwd2-sticky is actually caught/pinned, titleGroup already at its centered offset) before the heading is allowed to start revealing — see the seamComplete/entranceTriggered gating in update() below
+  const TAG_EXIT_SCROLL = 180; // tag fades + lifts slightly, well before it nears the heading
+  const REPOSITION_SCROLL = 280; // the (now tag-less) title group eases from centered up to top:120
+  const CARD_STAGGER_SCROLL = 45; // each card's own *fade-in* starts this much later than the previous — position is never staggered, see below
+  const CARD_PARK_SCROLL = 80; // quick eased (fast-to-slow) slide from cardStartX (off the right edge, see measure()) to CARD_PARK_X — small budget, feels fast
+  const CARD_PARK_X = 600; // px right of its resting spot where the eased curve stops — "600px from the heading's left edge"
+  const CARD_SETTLE_SCROLL = CARD_PARK_X; // CARD_PARK_X → 0, 1:1 with scroll (see the linear settle formula below) — set equal to the distance itself so 1px scrolled moves the row exactly 1px
+  const CARD_OPACITY_SCROLL = 160; // how much (per-card, staggered) scroll it takes to fully fade in — was tied to CARD_PARK_SCROLL*0.7 (56px), which finished within the fast "park" leg alone and read as an abrupt pop-in rather than a fade
+  // Total scroll room needed for the row to finish sliding AND for the last
+  // card's (staggered) fade-in to finish, whichever needs more.
+  const CARD_ENTRANCE_TOTAL = Math.max(
+    CARD_PARK_SCROLL + CARD_SETTLE_SCROLL,
+    (cards.length - 1) * CARD_STAGGER_SCROLL + CARD_OPACITY_SCROLL
+  );
+  const RIGHT_PADDING = 64; // gap kept after the last card once fully revealed
+  const TAG_LIFT = 40; // px the tag rises while fading — small and local, not a real scroll-away
+
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
+
+  // Wraps an element's text in the shared .kl/.kl__text/.kl__block kinetic
+  // block-sweep structure (see styles.css) — same reveal Numbers Tell the
+  // Story's stat labels use. Skipped entirely under reduced motion so the
+  // element's own plain text stays put, un-wrapped.
+  function wrapKineticText(el) {
+    const text = el.textContent;
+    el.textContent = '';
+    el.setAttribute('aria-label', text);
+    const outer = document.createElement('span');
+    outer.className = 'kl';
+    outer.setAttribute('aria-hidden', 'true');
+    const inner = document.createElement('span');
+    inner.className = 'kl__text';
+    inner.textContent = text;
+    const block = document.createElement('span');
+    block.className = 'kl__block';
+    outer.append(inner, block);
+    el.appendChild(outer);
+    return outer;
+  }
+
+  // Each card's title sweeps in, then its description a beat later — same
+  // per-unit stagger Numbers Tell the Story uses. Triggered once per card
+  // (cardTextRevealed below) shortly after that card's own entrance
+  // begins, via .is-text-revealing (not the shared .is-revealing — #wwd2
+  // also carries that for its own heading/tag entrance, and a bare
+  // `.is-revealing .kl__block` selector used to catch the cards' .kl units
+  // too since they're nested inside #wwd2 — see the #numbers-alt.is-armed
+  // scoping fix on that rule in styles.css). REVEAL_DELAY (below, in
+  // update()) adds a small real-time pause after the trigger condition is
+  // met, so the sweep doesn't start at the very first, barely-visible
+  // instant of the card's fade-in.
+  const KL_STAGGER = 0.15;
+  const REVEAL_DELAY = 180; // ms — small real-time pause after the trigger condition below, so the sweep doesn't fire the instant the card is barely visible
+  const cardTextRevealed = cards.map(() => false);
+  const cardTextRevealPending = cards.map(() => false);
+  if (!reduce) {
+    cards.forEach((card) => {
+      const title = card.querySelector('.wwd2-card__title');
+      const desc = card.querySelector('.wwd2-card__desc');
+      if (title) wrapKineticText(title).style.setProperty('--kd', '0s');
+      if (desc) wrapKineticText(desc).style.setProperty('--kd', `${KL_STAGGER}s`);
+    });
+  }
+
+  function renderChars(text, animate) {
+    tag.textContent = '';
+    tag.setAttribute('aria-label', text);
+    [...text].forEach((ch, i) => {
+      const span = document.createElement('span');
+      span.className = 'connect__char';
+      span.setAttribute('aria-hidden', 'true');
+      // A lone space text node inside a `display: inline-block` span gets
+      // whitespace-collapsed away (renders 0-width) — use a non-breaking
+      // space so "to Connect." etc. keep a visible gap between words.
+      span.textContent = ch === ' ' ? ' ' : ch;
+      if (animate) {
+        span.style.setProperty('--char-delay', `${i * CHAR_STAGGER}s`);
+        span.classList.add('is-in');
+      }
+      tag.appendChild(span);
+    });
+  }
+
+  // Locks the tag's box width once real fonts are loaded (measuring
+  // against a fallback font would under-size it).
+  function lockTagWidth() {
+    const originalText = tag.textContent;
+    tag.style.width = 'auto';
+    tag.textContent = TAG_TEXT;
+    const width = tag.getBoundingClientRect().width;
+    tag.textContent = originalText;
+    tag.style.width = `${Math.ceil(width)}px`;
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(lockTagWidth);
+  } else {
+    lockTagWidth();
+  }
+  window.addEventListener('resize', lockTagWidth);
+
+  // Static safe default: real text present immediately, no animation yet.
+  renderChars(TAG_TEXT, false);
+
+  let maxTranslate = 0;
+  let centerOffset = 0;
+  // Where the row starts, in px right of its resting spot — tied to the
+  // viewport's own width (remeasured on resize) rather than a fixed guess,
+  // so it always starts fully off the right edge of the screen regardless
+  // of how wide the viewport is, instead of just "pretty far right".
+  let cardStartX = 0;
+  function measure() {
+    maxTranslate = Math.max(0, track.scrollWidth - viewport.clientWidth + RIGHT_PADDING);
+    cardStartX = reduce ? 0 : window.innerWidth;
+    // How far down .wwd2-title-group needs to start so it *reads* as
+    // vertically centered, given its own (unaffected by any transform
+    // already on it — transforms don't change offsetHeight) rendered
+    // height and .wwd2-sticky's padding-top:120px resting spot.
+    const groupHeight = titleGroup.offsetHeight;
+    centerOffset = reduce ? 0 : Math.max(0, (window.innerHeight - groupHeight) / 2 - 120);
+    // Fully sequential: hold → tag exit → reposition → card entrance. Cards
+    // only start once the heading has actually finished moving to top, so
+    // they never slide in underneath/over heading text that's still mid-move.
+    const budgets = reduce ? 0 : ENTRANCE_HOLD_SCROLL + TAG_EXIT_SCROLL + REPOSITION_SCROLL + CARD_ENTRANCE_TOTAL;
+    pin.style.height = `${window.innerHeight + budgets + maxTranslate}px`;
+  }
+
+  let entranceTriggered = reduce;
+  // Numbers Tell the Story's dark-flip completes (see onSeamComplete below)
+  // well before the user has actually scrolled wwd2-pin into its own sticky
+  // hold — it's driven by #numbers-pin's own, earlier scroll range, not
+  // wwd2-pin's. Revealing the heading straight from that callback (the
+  // previous approach) meant its 0.6s fade-in played out entirely while
+  // wwd2 was still off-screen or mid-scroll-entry: by the time the user
+  // actually saw it, opacity was already locked at 1 (the `forwards` fill),
+  // so all they saw was the already-fully-visible heading physically
+  // riding up from the bottom of the viewport as .wwd2-sticky scrolled
+  // into its catch point — reading as "it rises up from the bottom" no
+  // matter what the CSS animation itself did. seamComplete here only
+  // records that the background is safely dark already (so white text
+  // never reveals against light); the actual reveal is gated in update()
+  // below on wwd2-pin's OWN local scroll (p > REVEAL_START_SCROLL) too, so
+  // it can only ever start once .wwd2-sticky is already caught/pinned and
+  // titleGroup is already sitting at its centered offset.
+  let seamComplete = reduce;
+  let tagExitDone = reduce;
+  // Once the cards have fully entered at least once, the whole entrance
+  // (tag exit, heading reposition, card group entrance) locks in place —
+  // scrolling back up from the card carousel only scrubs the carousel back
+  // to card 1, it never re-shows the tag or the centered-heading-alone
+  // state. Without this, scrolling up past the cards replayed the entrance
+  // in reverse, which read as an unnecessary/jarring "the cards vanished
+  // and the heading is alone again" moment for something the user had
+  // already seen.
+  let entranceLocked = reduce;
+  let ticking = false;
+
+  // initNumbersStage owns the light→dark screen flip driven by #numbers-pin's
+  // own scroll position (see its own comment above), and runs regardless of
+  // reduce — losing this call (as happened once already, see git history)
+  // doesn't just skip the entrance below: #numbers-alt's shared canvas stops
+  // getting its per-frame flat background/uSeamT updates entirely, so it
+  // silently falls back to .topo-bg's own CSS gradient — a visible two-tone
+  // gradient/seam instead of the intended whole-screen flip.
+  if (reduce) {
+    // No phased choreography: the tag is simply hidden (it's decorative —
+    // the cards are the content that actually needs to stay reachable) and
+    // cards are simply shown, both immediately, already at the heading's
+    // final top-anchored spot (centerOffset is 0 under reduce). Only the
+    // horizontal slide (how cards 2-6 become reachable at all) stays fully
+    // active.
+    tag.style.display = 'none';
+    if (tagWrap) tagWrap.classList.add('is-collapsed');
+    initNumbersStage();
+  } else {
+    pin.classList.add('is-armed');
+    initNumbersStage(() => {
+      seamComplete = true;
+    });
+  }
+
+  function triggerReveal() {
+    entranceTriggered = true;
+    pin.classList.add('is-revealing');
+    // Timed to land right after the heading (0.6s) + line (0.6s delay,
+    // 0.5s) finish — see styles.css. The tag box has no animation of its
+    // own (see .wwd2-pin.is-armed .connect__tag there): it just switches
+    // to visible here, in the same tick as the character stagger below,
+    // so the only motion the user sees is the letters rising into place —
+    // not the box fading in first and the letters again a beat later.
+    setTimeout(() => {
+      tag.style.opacity = '1';
+      renderChars(TAG_TEXT, true);
+    }, 1100);
+  }
+
+  function update() {
+    const p = Math.max(0, -pin.getBoundingClientRect().top);
+
+    if (!reduce && !entranceTriggered && seamComplete && p > REVEAL_START_SCROLL) {
+      triggerReveal();
+    }
+
+    if (!reduce) {
+      const tagExitP = Math.max(0, p - ENTRANCE_HOLD_SCROLL);
+      let tagExitT = Math.min(1, tagExitP / TAG_EXIT_SCROLL);
+
+      const repoP = Math.max(0, p - ENTRANCE_HOLD_SCROLL - TAG_EXIT_SCROLL);
+      let repoT = Math.min(1, repoP / REPOSITION_SCROLL);
+
+      // Cards only start once the heading has fully finished repositioning
+      // to top (repoT reaching 1) — starting any earlier had them sliding
+      // in underneath/over heading text that hadn't settled yet.
+      const cardBaseP = Math.max(0, p - ENTRANCE_HOLD_SCROLL - TAG_EXIT_SCROLL - REPOSITION_SCROLL);
+
+      if (!entranceLocked && cardBaseP >= CARD_ENTRANCE_TOTAL) entranceLocked = true;
+      if (entranceLocked) {
+        // Pin the whole entrance at its finished state regardless of the
+        // current (possibly-decreasing, if scrolling back up) p — only the
+        // horizontal card carousel below stays live in both directions.
+        tagExitT = 1;
+        repoT = 1;
+      }
+
+      if (entranceTriggered && (tagExitP > 0 || entranceLocked)) {
+        // The tag's own entrance (.is-revealing .connect__tag, in
+        // styles.css) is a `forwards`-filled CSS animation on these same
+        // two properties — once played, its filled end state keeps
+        // outranking plain inline styles on opacity/transform in the
+        // cascade. Clearing it here (harmless — the entrance has long
+        // finished by the time this ever moves off 1) lets the inline
+        // values actually take effect.
+        tag.style.animation = 'none';
+        tag.style.opacity = String(1 - tagExitT);
+        tag.style.transform = `translateY(${-tagExitT * TAG_LIFT}px)`;
+        if (tagExitT >= 1 && !tagExitDone) {
+          tagExitDone = true;
+          // The tag is fully invisible by now (opacity 0) — collapse its
+          // wrapper's box too so it stops holding open a gap between the
+          // heading and the cards below (see .wwd2-tag-wrap.is-collapsed).
+          if (tagWrap) tagWrap.classList.add('is-collapsed');
+        }
+      }
+
+      titleGroup.style.transform = `translateY(${centerOffset * (1 - repoT)}px)`;
+
+      // All six cards share this same x — moving as one rigid row keeps
+      // their 32px CSS gap constant throughout the entrance instead of it
+      // stretching while a later card is still catching up to an earlier
+      // one that's already arrived.
+      const parkT = entranceLocked ? 1 : Math.min(1, cardBaseP / CARD_PARK_SCROLL);
+      const settleP = Math.max(0, cardBaseP - CARD_PARK_SCROLL);
+      // Two distinct legs: the park leg is an eased (fast-to-slow) curve
+      // from cardStartX (off the right edge) down to CARD_PARK_X; the
+      // settle leg is a straight 1:1 scroll mapping from there to 0 (no
+      // easing) — CARD_SETTLE_SCROLL is set equal to CARD_PARK_X, so every
+      // extra px scrolled moves the row exactly 1px further left.
+      const groupX = parkT < 1
+        ? cardStartX + (CARD_PARK_X - cardStartX) * easeOutCubic(parkT)
+        : Math.max(0, CARD_PARK_X - settleP);
+      cards.forEach((card, i) => {
+        // Only the fade-in is staggered per card — purely cosmetic, no
+        // positional difference between cards.
+        const localP = Math.max(0, cardBaseP - i * CARD_STAGGER_SCROLL);
+        const opacityT = entranceLocked ? 1 : Math.min(1, localP / CARD_OPACITY_SCROLL);
+        card.style.opacity = String(easeOutCubic(opacityT));
+        card.style.transform = `translateX(${groupX}px)`;
+        // Triggers on the first sign of this card's own entrance (localP,
+        // staggered per-card same as opacity), same as originally — a
+        // "wait until the row is fully home" version was tried instead but
+        // wasn't wanted: revert to this, just with a small REVEAL_DELAY
+        // pause (real time, not scroll distance) so the sweep doesn't start
+        // at the very first, barely-visible instant. Guarding with a
+        // pending-timeout flag (not just cardTextRevealed) avoids stacking
+        // multiple timeouts if update() runs again before this one fires.
+        if (!cardTextRevealed[i] && !cardTextRevealPending[i] && (localP > 0 || entranceLocked)) {
+          cardTextRevealPending[i] = true;
+          window.setTimeout(() => {
+            cardTextRevealed[i] = true;
+            card.classList.add('is-text-revealing');
+          }, REVEAL_DELAY);
+        }
+      });
+    }
+
+    const slideBase = reduce ? 0 : ENTRANCE_HOLD_SCROLL + TAG_EXIT_SCROLL + REPOSITION_SCROLL + CARD_ENTRANCE_TOTAL;
+    const horizontalScrolled = Math.max(0, p - slideBase);
+    const x = Math.min(maxTranslate, horizontalScrolled);
+    track.style.transform = `translateX(-${x}px)`;
+
+    ticking = false;
+  }
+
+  measure();
+  update();
+
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    },
+    { passive: true }
+  );
+
+  window.addEventListener('resize', () => {
+    measure();
+    update();
+  });
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  initWwdSequence();
+} else {
+  window.addEventListener('DOMContentLoaded', initWwdSequence);
+}
+
+// ── What We Do: custom cursor ────────────────────────────────────────────
+// Replaces the system pointer with a small blue dot (see .wwd2-cursor,
+// hidden by default) while the mouse is over the dark panel — mouse-only
+// (matching .wwd2-sticky's own `cursor: none` under the same media guard),
+// so touch devices are untouched. Lives at the body level rather than
+// inside .wwd2-sticky so its position:fixed rendering is never at risk of
+// being clipped by that panel's own overflow:hidden.
+function initWwdCursor() {
+  const sticky = document.querySelector('.wwd2-sticky');
+  if (!sticky) return;
+  if (!window.matchMedia('(hover: hover)').matches) return;
+
+  const cursor = document.createElement('div');
+  cursor.className = 'wwd2-cursor';
+  cursor.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(cursor);
+
+  sticky.addEventListener('mouseenter', () => cursor.classList.add('is-visible'));
+  sticky.addEventListener('mouseleave', () => cursor.classList.remove('is-visible'));
+  sticky.addEventListener('mousemove', (e) => {
+    cursor.style.transform = `translate(${e.clientX}px, ${e.clientY}px) translate(-50%, -50%)`;
+  });
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  initWwdCursor();
+} else {
+  window.addEventListener('DOMContentLoaded', initWwdCursor);
+}
+
+// ── What We Do: card hover (JS-driven, not plain :hover) ─────────────────
+// The hovered card's text block scales/lifts/tilts well past its own real
+// (untransformed) column width — see .wwd2-card.is-active-hover in
+// styles.css — deliberately overlapping the next card over. Plain CSS
+// `:hover` tracks each card's real column, not its escaped visual shape,
+// so right at that boundary the mouse is genuinely inside the NEXT card's
+// real column even though it still looks like it's over the lifted card;
+// `:hover` would flip to that next card and (being later in DOM order)
+// paint over the one the user meant to point at. Debouncing the switch —
+// only committing to a new active card once the mouse has stayed there a
+// beat, not on every mouseenter — absorbs that boundary flicker without
+// needing to shrink the escape enough to avoid it entirely.
+function initWwdCardHover() {
+  const track = document.getElementById('wwd2-track');
+  const cards = track ? [...track.querySelectorAll('.wwd2-card')] : [];
+  if (!track || !cards.length) return;
+  if (!window.matchMedia('(hover: hover)').matches) return;
+
+  const SWITCH_DELAY = 100;
+  let active = null;
+  let switchTimer = 0;
+
+  function setActive(card) {
+    if (card === active) return;
+    if (active) active.classList.remove('is-active-hover');
+    active = card;
+    if (active) active.classList.add('is-active-hover');
+  }
+
+  // Listens on .wwd2-card__text specifically, not the whole .wwd2-card —
+  // hovering the dummy image below shouldn't lift the text card above it.
+  // Both enter AND leave reset the same debounce timer, whichever fires
+  // last within the window wins — so a quick graze across the boundary
+  // into a neighbor's real hitbox (see the .is-active-hover comment in
+  // styles.css for why that can happen) settles back on the card the user
+  // actually left second, instead of either getting stuck active with
+  // nothing currently hovered, or requiring a full re-hover to drop.
+  cards.forEach((card) => {
+    const text = card.querySelector('.wwd2-card__text');
+    if (!text) return;
+    text.addEventListener('mouseenter', () => {
+      clearTimeout(switchTimer);
+      switchTimer = setTimeout(() => setActive(card), SWITCH_DELAY);
+    });
+    text.addEventListener('mouseleave', () => {
+      clearTimeout(switchTimer);
+      switchTimer = setTimeout(() => setActive(null), SWITCH_DELAY);
+    });
+  });
+
+  // Leaving the whole row clears the active card immediately — no reason
+  // to debounce a clean exit.
+  track.addEventListener('mouseleave', () => {
+    clearTimeout(switchTimer);
+    setActive(null);
+  });
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  initWwdCardHover();
+} else {
+  window.addEventListener('DOMContentLoaded', initWwdCardHover);
 }
 
 // ── Testimonial laurels: fade + float up once in view ───────────────────
 // `.is-hidden` only ever gets added here, right before observing — never in
 // plain CSS — so a laurel is always visible by default; if IntersectionObserver
 // is unavailable or motion is reduced, this just no-ops and they stay visible.
-function initTestimonialLaurels() {
-  const laurels = [...document.querySelectorAll('.testimonials__laurel')];
-  const section = document.getElementById('trust');
+function initTestimonialLaurels(laurelSelector, sectionId, scoreSelector) {
+  const laurels = [...document.querySelectorAll(laurelSelector)];
+  const section = document.getElementById(sectionId);
   if (!laurels.length || !section) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (typeof IntersectionObserver === 'undefined') return;
@@ -595,7 +1517,7 @@ function initTestimonialLaurels() {
       laurels.forEach((el, i) => {
         setTimeout(() => {
           el.classList.remove('is-hidden');
-          const score = el.querySelector('.testimonials__laurel-score');
+          const score = el.querySelector(scoreSelector);
           if (score) animateScore(score);
         }, i * STAGGER);
       });
@@ -606,10 +1528,72 @@ function initTestimonialLaurels() {
   observer.observe(section);
 }
 
+// initTestimonialLaurels() stays parameterized (laurelSelector/sectionId/
+// scoreSelector) even though only .client2 calls it now — the old #trust
+// call that used to sit alongside this one was removed with that section.
+function bootTestimonialLaurels() {
+  initTestimonialLaurels('.client2__laurel', 'client2', '.client2__laurel-score');
+}
+
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  initTestimonialLaurels();
+  bootTestimonialLaurels();
 } else {
-  window.addEventListener('DOMContentLoaded', initTestimonialLaurels);
+  window.addEventListener('DOMContentLoaded', bootTestimonialLaurels);
+}
+
+// client2's laurel labels ("On-time Delivery Rate" etc.) get the same
+// kinetic block-sweep reveal Numbers Tell the Story's stat labels use (see
+// initNumtellLabelReveal() above) — .client2__laurel-label .kl__block is
+// overridden to this section's own #ffb349 accent instead of the shared
+// component's default blue (see styles.css). Triggered independently of
+// initTestimonialLaurels() above (own IntersectionObserver on the same
+// #client2 section) — same pattern Numbers Tell the Story uses for its own
+// two independent reveal systems (count-up + label sweep).
+function initClient2LabelReveal() {
+  const section = document.getElementById('client2');
+  const labels = section ? [...section.querySelectorAll('.client2__laurel-label')] : [];
+  if (!labels.length) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (typeof IntersectionObserver === 'undefined') return;
+
+  const DURATION = 0.5;
+  const STAGGER = 0.18;
+
+  labels.forEach((label, i) => {
+    const text = label.innerHTML;
+    const spokenLabel = text.replace(/<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ').trim();
+    label.textContent = '';
+    label.setAttribute('aria-label', spokenLabel);
+    const outer = document.createElement('span');
+    outer.className = 'kl';
+    outer.setAttribute('aria-hidden', 'true');
+    outer.style.setProperty('--kd', `${i * STAGGER}s`);
+    outer.style.setProperty('--kdur', `${DURATION}s`);
+    const inner = document.createElement('span');
+    inner.className = 'kl__text';
+    inner.innerHTML = text;
+    const block = document.createElement('span');
+    block.className = 'kl__block';
+    outer.append(inner, block);
+    label.appendChild(outer);
+  });
+
+  const START_DELAY = 350; // ms — small pause before the sweep starts, same reasoning as initNumbersHandwriting's own delay
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      observer.unobserve(entry.target);
+      window.setTimeout(() => section.classList.add('is-label-revealing'), START_DELAY);
+    });
+  }, { threshold: 0.3 });
+  observer.observe(section);
+}
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  initClient2LabelReveal();
+} else {
+  window.addEventListener('DOMContentLoaded', initClient2LabelReveal);
 }
 
 // ── Services section: spheres converge-then-drift ────────────────────────
@@ -618,10 +1602,7 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
 // position — fast to slow, one-time. Continuing to scroll through the
 // section then drifts them up to 20px further outward, tied to scroll
 // progress, for a subtle parallax as the section passes.
-function initServicesSpheres() {
-  const section = document.getElementById('services');
-  const sphereLeft = document.querySelector('.services__sphere--wire');
-  const sphereRight = document.querySelector('.services__sphere--color');
+function initServicesSpheres(section, sphereLeft, sphereRight, onEntranceEase) {
   if (!section || !sphereLeft || !sphereRight) return;
 
   const reduceMotionSpheres = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -661,6 +1642,7 @@ function initServicesSpheres() {
   if (reduceMotionSpheres) {
     entranceOffset = 0;
     render();
+    if (onEntranceEase) onEntranceEase(1);
   } else if (typeof IntersectionObserver !== 'undefined') {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -673,6 +1655,7 @@ function initServicesSpheres() {
           const eased = 1 - Math.pow(1 - elapsed, 3);
           entranceOffset = startOffset * (1 - eased);
           render();
+          if (onEntranceEase) onEntranceEase(eased);
           if (elapsed < 1) requestAnimationFrame(frame);
         }
         requestAnimationFrame(frame);
@@ -683,6 +1666,7 @@ function initServicesSpheres() {
   } else {
     entranceOffset = 0;
     render();
+    if (onEntranceEase) onEntranceEase(1);
   }
 
   let sphereTicking = false;
@@ -707,10 +1691,34 @@ function initServicesSpheres() {
   });
 }
 
+// Called once per section that has a .services__sphere pair — currently
+// "What we do" and the Numbers Tell the Story v2 comparison section, each
+// fully independent (own scroll-linked entrance/parallax state).
+function bootServicesSpheres() {
+  document.querySelectorAll('.services__sphere--wire').forEach((sphereLeft) => {
+    const section = sphereLeft.closest('section');
+    const sphereRight = section && section.querySelector('.services__sphere--color');
+    // Numbers Tell the Story v2's stat gap narrows in lockstep with this
+    // section's own sphere entrance — same easing, same frame, driven by
+    // the callback below rather than a second independent animation.
+    const stats = section && section.id === 'numbers-alt' ? section.querySelector('.numtell__stats') : null;
+    let onEntranceEase;
+    if (stats) {
+      const GAP_START = 160;
+      const GAP_END = 60;
+      stats.style.gap = `${GAP_START}px`;
+      onEntranceEase = (eased) => {
+        stats.style.gap = `${GAP_START - (GAP_START - GAP_END) * eased}px`;
+      };
+    }
+    initServicesSpheres(section, sphereLeft, sphereRight, onEntranceEase);
+  });
+}
+
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  initServicesSpheres();
+  bootServicesSpheres();
 } else {
-  window.addEventListener('DOMContentLoaded', initServicesSpheres);
+  window.addEventListener('DOMContentLoaded', bootServicesSpheres);
 }
 
 // ── Testimonials marquee: scroll-coupled direction and speed ─────────────
@@ -720,8 +1728,8 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
 // being scrolled. It never stops — the content is duplicated once and the
 // offset wraps with modulo math, so the loop is seamless in both
 // directions regardless of how it's currently moving.
-function initTestimonialsMarquee() {
-  const track = document.querySelector('.testimonials__track');
+function initTestimonialsMarquee(trackSelector) {
+  const track = document.querySelector(trackSelector);
   if (!track) return;
 
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -777,151 +1785,255 @@ function initTestimonialsMarquee() {
   requestAnimationFrame(frame);
 }
 
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  initTestimonialsMarquee();
-} else {
-  window.addEventListener('DOMContentLoaded', initTestimonialsMarquee);
+// initTestimonialsMarquee() stays parameterized (trackSelector) even though
+// only #client2-track calls it now — the old .testimonials__track call that
+// used to sit alongside this one was removed with the #trust section.
+function bootTestimonialsMarquees() {
+  initTestimonialsMarquee('#client2-track');
 }
 
-// ── Expertise intro: kinetic typography reveal ───────────────────────────
-// Splits the existing "Expertise" heading into characters and the lead
-// paragraph into words, purely for animation — the text content, layout,
-// font, and final appearance are untouched. A small blue block sweeps over
-// each unit and it's revealed once fully covered, then the block exits.
-// Heading finishes fully before the paragraph starts; within the
-// paragraph, each wrapped line finishes before the next line begins.
-// Skipped entirely under prefers-reduced-motion, leaving plain static text.
-function initExpertiseKinetic() {
-  const heading = document.querySelector('.expertise__heading');
-  const lead = document.querySelector('.expertise__lead');
-  const intro = document.querySelector('.expertise__intro');
-  if (!heading || !lead || !intro) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  if (typeof IntersectionObserver === 'undefined') return;
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  bootTestimonialsMarquees();
+} else {
+  window.addEventListener('DOMContentLoaded', bootTestimonialsMarquees);
+}
 
-  // Explicit start times (from the moment the reveal triggers), not a
-  // formula — heading starts immediately, the two lines follow at fixed
-  // offsets regardless of how long the heading or line 1 take to finish.
-  const LINE_DELAYS = [0.06, 0.9];
-  const HEADING_DURATION = 0.42;
-  const LINE_SWEEP_DURATION = 0.75;
+// ── CTA 2: cycling icon ───────────────────────────────────────────────────
+// Swaps through img/svg icon/Icon-1.svg .. Icon-6.svg above the CTA 2
+// heading, 0.5s each, looping. Reduced motion just shows the first icon,
+// static, rather than cycling.
+function initCta2IconCycle() {
+  const icon = document.getElementById('cta2-icon');
+  if (!icon) return;
 
-  const headingText = heading.textContent;
-  heading.textContent = '';
-  heading.setAttribute('aria-label', headingText);
-  const headingOuter = document.createElement('span');
-  headingOuter.className = 'kl';
-  headingOuter.setAttribute('aria-hidden', 'true');
-  headingOuter.style.setProperty('--kd', '0s');
-  headingOuter.style.setProperty('--kdur', `${HEADING_DURATION}s`);
-  const headingInner = document.createElement('span');
-  headingInner.className = 'kl__text';
-  headingInner.textContent = headingText;
-  const headingBlock = document.createElement('span');
-  headingBlock.className = 'kl__block';
-  headingOuter.append(headingInner, headingBlock);
-  heading.appendChild(headingOuter);
-
-  const leadText = lead.textContent;
-  lead.setAttribute('aria-label', leadText);
-  const words = leadText.split(/\s+/).filter(Boolean);
-
-  // One block per wrapped line, not per word — group words by their
-  // rendered line (measured with plain inline-block probe spans), then
-  // rebuild the paragraph as one .kl wrapper per line, joined with
-  // explicit <br>s so the line breaks stay exactly where they were
-  // measured.
-  function buildLines() {
-    lead.textContent = '';
-    const probes = words.map((word, i) => {
-      const span = document.createElement('span');
-      span.style.display = 'inline-block';
-      span.textContent = word;
-      lead.appendChild(span);
-      if (i < words.length - 1) lead.appendChild(document.createTextNode(' '));
-      return span;
-    });
-
-    const lineGroups = [];
-    let lastTop = null;
-    probes.forEach((span, i) => {
-      const top = span.offsetTop;
-      if (lastTop === null || Math.abs(top - lastTop) > 2) {
-        lineGroups.push([]);
-        lastTop = top;
-      }
-      lineGroups[lineGroups.length - 1].push(words[i]);
-    });
-
-    lead.textContent = '';
-    return lineGroups.map((lineWords, i) => {
-      const outer = document.createElement('span');
-      outer.className = 'kl';
-      outer.setAttribute('aria-hidden', 'true');
-      const inner = document.createElement('span');
-      inner.className = 'kl__text';
-      inner.textContent = lineWords.join(' ');
-      const block = document.createElement('span');
-      block.className = 'kl__block';
-      outer.append(inner, block);
-      lead.appendChild(outer);
-      if (i < lineGroups.length - 1) lead.appendChild(document.createElement('br'));
-      return outer;
-    });
+  const ICONS = [1, 2, 3, 4, 5, 6].map((n) => `img/svg icon/Icon-${n}.svg`);
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    icon.src = ICONS[0];
+    return;
   }
 
-  let lineEls = buildLines();
+  const INTERVAL = 500;
+  let index = 0;
+  setInterval(() => {
+    index = (index + 1) % ICONS.length;
+    icon.src = ICONS[index];
+  }, INTERVAL);
+}
 
-  function assignLineDelays() {
-    lineEls = buildLines();
-    lineEls.forEach((el, i) => {
-      const delay = i < LINE_DELAYS.length ? LINE_DELAYS[i] : LINE_DELAYS[LINE_DELAYS.length - 1] + (i - LINE_DELAYS.length + 1) * 0.06;
-      el.style.setProperty('--kd', `${delay}s`);
-      el.style.setProperty('--kdur', `${LINE_SWEEP_DURATION}s`);
-    });
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  initCta2IconCycle();
+} else {
+  window.addEventListener('DOMContentLoaded', initCta2IconCycle);
+}
+
+// ── CTA 2: full-bleed entrance, then shrink to the resting card ─────────
+// .cta2-pin is a tall scroll-jack wrapper (height set below); .cta2 (its
+// pinned child, plain CSS position:sticky) is what makes .cta2__card and
+// .cta2__content feel "stuck" while three phases play out, each consuming
+// its own slice of scroll:
+//   FADE_SCROLL — .cta2__card fades in (opacity 0->1) already sized
+//     full-bleed (position:fixed, covering the viewport). .cta2's own
+//     background stays white (matching #client2 above) through this whole
+//     phase — it only starts crossfading to blue once SHRINK begins, so
+//     scrolling in never shows a flash of blue before the silk appears.
+//   HOLD_SCROLL — nothing moves; a deliberate pause once content has
+//     finished revealing, so a fast scroll can't blow past the full-bleed
+//     moment before it registers (same reasoning as Numbers Tell the
+//     Story's own HOLD_SCROLL and WWD's ENTRANCE_HOLD_SCROLL).
+//   SHRINK_SCROLL — the card animates from full-bleed down to its real
+//     resting rect — measured fresh via measureFinalRect() below, not a
+//     hardcoded size, so this adapts to any viewport width/height on its
+//     own (mobile included). Driven by CSS transform (scale + translate),
+//     not by animating width/height directly: the card's actual DOM size
+//     never changes during this phase, only its rendered transform — so
+//     silk-background.js's ResizeObserver (which resizes the WebGL canvas,
+//     clearing its buffer every time) never fires mid-animation, which is
+//     what caused a visible flicker when width/height were animated
+//     directly instead.
+// Content (icon/heading/lead/button, in .cta2__content — a sibling of
+// .cta2__card, not nested inside it) fades up once FADE_SCROLL completes,
+// via .is-content-revealing, centered in the viewport (see the CSS rules
+// on .cta2-pin.is-armed for the fade itself). Its own top position is
+// animated separately from the card — centered while full-bleed, easing
+// down to its natural spot (aligned with the card's own top edge, which
+// combined with .cta2__content's 88px padding-top recreates the original
+// inset) only once SHRINK starts, using the same eased progress as the
+// card. Keeping it a sibling (not nested inside .cta2__card) means this
+// can be computed directly in real viewport pixels, with no need to
+// compensate for .cta2__card's own transform:scale.
+function initCta2Transition() {
+  const pin = document.getElementById('cta2-pin');
+  const section = document.getElementById('cta2');
+  const card = section && section.querySelector('.cta2__card');
+  const content = section && section.querySelector('.cta2__content');
+  if (!pin || !section || !card || !content) return;
+
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) return; // .cta2-pin never gets .is-armed — card and content simply render at their normal, final CSS state
+
+  const narrow = window.matchMedia('(max-width: 720px)').matches;
+  const FADE_SCROLL = narrow ? 160 : 250;
+  const HOLD_SCROLL = narrow ? 220 : 350;
+  const SHRINK_SCROLL = narrow ? 480 : 750; // was 320/500 — felt too fast for how much visual change happens
+
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
   }
-  assignLineDelays();
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+  function lerpColor(from, to, t) {
+    const r = Math.round(lerp(from[0], to[0], t));
+    const g = Math.round(lerp(from[1], to[1], t));
+    const b = Math.round(lerp(from[2], to[2], t));
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+  const BG_WHITE = [255, 255, 255];
+  const BG_BLUE = [44, 105, 206]; // #2c69ce
 
-  // Re-measure once web fonts finish loading — an earlier measurement taken
-  // against the fallback font can group words into the wrong line if the
-  // real typeface swaps in wider or narrower and reflows the wrap.
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => {
-      if (!intro.classList.contains('is-revealing')) assignLineDelays();
-    });
+  let finalRect = { top: 0, left: 0, width: 0, height: 0 };
+  let finalContentTop = 0;
+  let centeredContentTop = 0;
+
+  // FLIP-style measurement: .cta2 only actually renders "pinned" (top:0,
+  // full viewport) once scrolled into its own sticky range — but the
+  // card's rect within that pinned shape is fully determined by CSS
+  // (flex layout + viewport size), independent of scroll position. So
+  // .cta2 is forced into that exact shape here just long enough to read
+  // the card's and content's natural rects, then restored — giving an
+  // accurate target even before the user has ever scrolled anywhere near
+  // this section.
+  function measureFinalRect() {
+    card.style.cssText = '';
+    content.style.cssText = '';
+    const prevSectionStyle = section.style.cssText;
+    section.style.position = 'fixed';
+    section.style.top = '0';
+    section.style.left = '0';
+    section.style.width = '100vw';
+    section.style.height = '100vh';
+    const r = card.getBoundingClientRect();
+    const cr = content.getBoundingClientRect();
+    finalRect = { top: r.top, left: r.left, width: r.width, height: r.height };
+    // .cta2__content's own top aligns with the card's top at rest — its
+    // 88px padding-top (see styles.css) is what recreates the original
+    // inset from there, so no separate content-vs-card offset is needed.
+    finalContentTop = finalRect.top;
+    centeredContentTop = (window.innerHeight - cr.height) / 2;
+    section.style.cssText = prevSectionStyle;
   }
 
-  let resizeTicking = false;
+  function measure() {
+    measureFinalRect();
+    const total = window.innerHeight + FADE_SCROLL + HOLD_SCROLL + SHRINK_SCROLL;
+    pin.style.height = `${total}px`;
+  }
+
+  pin.classList.add('is-armed');
+
+  let ticking = false;
+
+  function update() {
+    const p = Math.max(0, -pin.getBoundingClientRect().top);
+
+    const fadeT = Math.min(1, p / FADE_SCROLL);
+    card.style.opacity = String(fadeT);
+    if (fadeT >= 1) pin.classList.add('is-content-revealing');
+
+    const shrinkP = Math.max(0, p - FADE_SCROLL - HOLD_SCROLL);
+    const shrinkT = Math.min(1, shrinkP / SHRINK_SCROLL);
+    const eased = easeOutCubic(shrinkT);
+
+    // .cta2's own background: white through fade+hold (shrinkT stays 0),
+    // crossfading to blue only as the shrink reveals the backdrop around
+    // the card.
+    section.style.background = lerpColor(BG_WHITE, BG_BLUE, eased);
+
+    // Content position: centered while full-bleed, easing to its natural
+    // spot in sync with the card's own shrink — never nested inside the
+    // card, so this is plain viewport pixels, no scale compensation.
+    content.style.top = `${lerp(centeredContentTop, finalContentTop, eased)}px`;
+
+    if (shrinkT <= 0) {
+      // Full-bleed, pinned to the viewport, no transform. max-width:1432px
+      // from the card's own resting CSS would otherwise clamp width:100vw
+      // right back down — needs an explicit override here too.
+      card.style.position = 'fixed';
+      card.style.top = '0px';
+      card.style.left = '0px';
+      card.style.width = '100vw';
+      card.style.maxWidth = 'none';
+      card.style.height = '100vh';
+      card.style.transformOrigin = '0 0';
+      card.style.transform = 'none';
+      card.style.borderRadius = '0px';
+    } else if (shrinkT >= 1) {
+      // Settled — clear every inline override so the card's own CSS
+      // (position:relative, normal flex-laid-out size) takes over exactly
+      // as it renders at rest, pixel for pixel.
+      card.style.position = '';
+      card.style.top = '';
+      card.style.left = '';
+      card.style.width = '';
+      card.style.maxWidth = '';
+      card.style.height = '';
+      card.style.transform = '';
+      card.style.transformOrigin = '';
+      card.style.borderRadius = '';
+    } else {
+      // Card's own DOM size stays fixed at the full-bleed 100vw/100vh the
+      // whole time — only `transform` changes — so silk-background.js's
+      // ResizeObserver never fires mid-shrink (see the function comment).
+      // transform-origin:0 0 (set once, at arm time, below) means scaling
+      // keeps the top-left corner anchored at (0,0) before translate
+      // moves it to the target position.
+      const sx = finalRect.width / window.innerWidth;
+      const sy = finalRect.height / window.innerHeight;
+      const curSx = lerp(1, sx, eased);
+      const curSy = lerp(1, sy, eased);
+      const curX = lerp(0, finalRect.left, eased);
+      const curY = lerp(0, finalRect.top, eased);
+      card.style.position = 'fixed';
+      card.style.top = '0px';
+      card.style.left = '0px';
+      card.style.width = '100vw';
+      card.style.maxWidth = 'none';
+      card.style.height = '100vh';
+      card.style.transformOrigin = '0 0';
+      card.style.transform = `translate(${curX}px, ${curY}px) scale(${curSx}, ${curSy})`;
+      // Compensates for the scale above so the CSS radius still reads as
+      // a constant ~12px visually instead of shrinking along with the box.
+      const targetRadius = lerp(0, 12, eased);
+      const scaleForRadius = Math.min(curSx, curSy) || 1;
+      card.style.borderRadius = `${targetRadius / scaleForRadius}px`;
+    }
+
+    ticking = false;
+  }
+
+  measure();
+  update();
+
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    },
+    { passive: true }
+  );
+
   window.addEventListener('resize', () => {
-    if (intro.classList.contains('is-revealing') || resizeTicking) return;
-    resizeTicking = true;
-    requestAnimationFrame(() => {
-      assignLineDelays();
-      resizeTicking = false;
-    });
+    measure();
+    update();
   });
-
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      observer.unobserve(entry.target);
-      const start = () => intro.classList.add('is-revealing');
-      if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(() => {
-          assignLineDelays();
-          start();
-        });
-      } else {
-        start();
-      }
-    });
-  }, { threshold: 0.3 });
-  observer.observe(intro);
 }
 
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  initExpertiseKinetic();
+  initCta2Transition();
 } else {
-  window.addEventListener('DOMContentLoaded', initExpertiseKinetic);
+  window.addEventListener('DOMContentLoaded', initCta2Transition);
 }
+
 

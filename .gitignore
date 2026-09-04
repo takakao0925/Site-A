@@ -3,3 +3,5 @@ backup/
 Handoff/
 PRODUCT.md
 HERO_GLASS_HANDOFF.md
+node_modules/
+dist/

@@ -7,8 +7,15 @@
   --text: #f4f6fa;
   --text-dim: #97a3b8;
   --text-faint: #7c8698;
-  --font-display: 'Mona Sans Variable', system-ui, -apple-system, sans-serif;
-  --font-body: 'Mona Sans Variable', system-ui, -apple-system, sans-serif;
+  /* Site-wide font, switched from Mona Sans Variable to General Sans. Only
+     4 static weights are loaded (400/500/600/700 — see the Fontshare link
+     in index.html's <head>), not a true variable font: General Sans has no
+     variable-font source available (checked both Fontshare and fontsource;
+     neither offers one). The one place on the site that asked for weight
+     800 (.hero__headline-line) will render at 700 instead — General Sans'
+     heaviest available static weight — since 800 isn't offered either. */
+  --font-display: 'General Sans', system-ui, -apple-system, sans-serif;
+  --font-body: 'General Sans', system-ui, -apple-system, sans-serif;
   --gradient-brand: linear-gradient(100deg, var(--teal) 0%, var(--blue) 55%, var(--indigo) 100%);
 }
 
@@ -156,13 +163,38 @@ a {
 }
 
 .nav__logo {
+  position: relative;
   padding-left: 8px;
 }
 
-.nav__logo img {
+/* Two stacked logo images crossfade via opacity (driven by .nav--on-light,
+   toggled in main.js off the same overLight check that already drives the
+   nav text color below) instead of swapping one <img>'s src — a src swap
+   can't transition/fade, and was previously tied to the capsule's own
+   is-scrolled state instead, so it went "colored" the moment the header
+   first expanded and then stayed that way even back over a later dark
+   section like #wwd2. */
+.nav__logo-img {
   height: 22px;
   width: auto;
   display: block;
+  transition: opacity 0.4s ease;
+}
+
+.nav__logo-img--color {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+}
+
+.nav--on-light .nav__logo-img--white {
+  opacity: 0;
+}
+
+.nav--on-light .nav__logo-img--color {
+  opacity: 1;
 }
 
 .nav__links {
@@ -177,12 +209,12 @@ a {
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--text); /* white on dark backgrounds — was --text-dim, a muted gray-blue that read as too faint */
   transition: color 0.2s ease;
 }
 
 .nav__link:hover {
-  color: var(--text);
+  color: #55caea;
 }
 
 .nav__lang {
@@ -200,28 +232,28 @@ a {
 }
 
 .nav__lang-option {
-  color: var(--text-faint);
+  color: var(--text); /* white on dark backgrounds — was --text-faint */
   transition: color 0.2s ease;
 }
 
 .nav__lang-option--active {
-  color: var(--text);
+  color: #55caea; /* light blue — same accent .nav--on-light already uses for the active option */
 }
 
 .nav__lang-divider {
-  color: var(--text-faint);
+  color: var(--text); /* white on dark backgrounds — was --text-faint */
   font-weight: 400;
 }
 
 .nav__lang:hover .nav__lang-option {
-  color: var(--text-dim);
-}
-
-.nav__lang:hover .nav__lang-option--active {
   color: var(--text);
 }
 
-/* Over the light band (credibility + services), swap the header text to
+.nav__lang:hover .nav__lang-option--active {
+  color: #55caea;
+}
+
+/* Over the light band (numbers-alt + services), swap the header text to
    dark so it stays readable — toggled in main.js. */
 .nav--on-light .nav__link {
   color: #262829;
@@ -267,9 +299,39 @@ a {
 
 /* ── Hero ────────────────────────────────────────────────────────────── */
 
-.hero {
+/* ── Hero → Numbers Tell the Story cover transition ──────────────────────
+   .hero-pin is a 200svh scroll-jack spacer. .hero itself is position:sticky
+   inside it, so it stays pinned at top:0 for as long as there's still
+   room left in the 200svh box below the current scroll position — i.e.
+   for exactly the first 100svh of scrolling (200svh total - 100svh of its
+   own height = 100svh of "stick" budget).
+   .story-wrap (the very next element after .hero-pin closes) is pulled up
+   by margin-top: -100svh (see below), so its real document top sits at
+   100svh into .hero-pin instead of at 200svh. That means: at scroll 0,
+   .story-wrap's top edge is a full viewport below the fold (not visible,
+   hero shows uncovered); as the user scrolls through that first 100svh,
+   .story-wrap scrolls up the page exactly like normal content and its top
+   edge rises up the viewport — while .hero, still within its own 100svh
+   stick budget, stays pinned underneath — so .story-wrap visually slides
+   up from the bottom and progressively covers .hero. Both effects run out
+   at exactly the same scroll position (100svh), by construction, so hero
+   is fully covered right as it stops being sticky, with no gap or overlap
+   glitch. Net page height is unchanged (.hero-pin's extra 100svh exactly
+   cancels .story-wrap's -100svh margin), so nothing after story-wrap
+   shifts.
+   .nav stays unaffected throughout: it's position:fixed, z-index:50, well
+   above both .hero (z-index:0) and .story-wrap (position:relative,
+   default z-index) regardless of scroll position. */
+.hero-pin {
   position: relative;
-  min-height: 100svh;
+  height: 200svh;
+}
+
+.hero {
+  position: sticky;
+  top: 0;
+  z-index: 0;
+  height: 100svh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -408,25 +470,6 @@ a {
       linear-gradient(180deg, rgba(5, 7, 12, 0.4) 0%, rgba(5, 7, 12, 0.1) 20%, rgba(5, 7, 12, 0.35) 60%, rgba(5, 7, 12, 0.95) 100%);
   }
 
-  .credibility {
-    min-height: auto;
-    padding: 40px 24px;
-  }
-
-  .numbers-grid {
-    flex-direction: column;
-    width: 100%;
-    max-width: 320px;
-  }
-
-  .numbers-card {
-    width: 100%;
-  }
-
-  .numbers-card + .numbers-card {
-    border-left: none;
-    border-top: 1px solid #e7ebf0;
-  }
 }
 
 /* ── Shared section scaffolding ─────────────────────────────────────── */
@@ -435,17 +478,6 @@ a {
   max-width: 1180px;
   margin: 0 auto;
   padding: clamp(88px, 12vw, 160px) clamp(24px, 6vw, 64px);
-}
-
-.section-heading {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: clamp(1.8rem, 3.6vw, 2.75rem);
-  line-height: 1.14;
-  letter-spacing: -0.015em;
-  color: var(--text);
-  max-width: 20ch;
-  margin-bottom: 20px;
 }
 
 .section-lead {
@@ -475,69 +507,142 @@ a {
   transform: none;
 }
 
-/* ── Testimonials (Figma node 208:297) ───────────────────────────────────
-   White, continuing the light band. Three laurel "4.8/5" badges above an
-   infinite, constant-speed left-to-right marquee — content is duplicated
-   once so the loop is seamless; never pauses, including on hover. */
-.trust {
+/* .trust/.testimonials__* (old Client section, Figma node 208:297 before it
+   was updated) removed — superseded by .client2 below, which now owns that
+   node id. */
+
+/* ── Client 2 (Figma node 208:297, updated since #trust above was first
+   built from it) ──────────────────────────────────────────────────────
+   Same white band, laurels, and testimonial marquee as #trust, but the
+   newer layout: a heading row (with the "Ahead" script flourish overlaid
+   on "Think") beside the laurels, and each quote in its own bordered,
+   backdrop-blurred card rather than plain bracket-flanked text. Marquee
+   mechanics are the exact same JS (initTestimonialsMarquee), just a second,
+   independent instance on #client2-track. */
+.client2 {
   position: relative;
+  min-height: 100vh; /* one full page tall */
   background: #fff;
   overflow: hidden;
+  /* Centers .client2__inner + .client2__marquee as one group in the
+     section's full height, rather than the old top-padding approach which
+     (once the section became a full 100vh) left a large dead gap below the
+     marquee instead of the content sitting mid-page. */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-.testimonials__inner {
-  padding: clamp(88px, 12vw, 160px) 0;
+.client2__inner {
+  /* No top/bottom padding — vertical position is now owned by .client2's
+     own centering above, not by pushing down from the top. No bottom
+     padding here either way, since .client2__marquee sits outside
+     .client2__inner (a sibling, not a flex child, see its own comment) and
+     owns the spacing below it instead. --side-pad is still defined here
+     since the marquee references the same value to cancel it for
+     full-bleed. */
+  --side-pad: clamp(24px, 6vw, 64px);
+  padding: 0 var(--side-pad);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 60px;
 }
 
-.testimonials__laurels {
+.client2__head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 32px;
+  width: 100%;
+  max-width: 1272px;
+}
+
+.client2__heading {
+  /* z-index:0 (not just position:relative) makes this its own stacking
+     context, so .client2__ahead's negative z-index below is contained to
+     sinking under this heading's own text specifically — not free to fall
+     behind anything further out in the page. */
+  position: relative;
+  z-index: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(24px, 2.4vw, 32px);
+  line-height: 1.25;
+  color: #222;
+  white-space: nowrap;
+}
+
+.client2__heading p {
+  margin: 0;
+}
+
+/* Decorative script "Ahead" — a hand-drawn vector, not real text (see the
+   comment on client2-ahead.svg's origin) — overlaid after "Think", sized
+   and positioned to match Figma's node (393×251, offset 60/-62 from this
+   heading row's own box). */
+.client2__ahead {
+  /* Sits behind "Trusted by Teams That Think" (a plain, non-positioned
+     text run) rather than covering it — a positioned element with no
+     z-index paints ABOVE static content regardless of DOM order, so this
+     needs an explicit negative z-index to sink under the heading's own
+     text instead, contained within .client2__heading's stacking context. */
+  position: absolute;
+  z-index: -1;
+  left: 60px;
+  top: -62px;
+  width: min(393px, 32vw);
+  height: auto;
+  pointer-events: none;
+}
+
+.client2__laurels {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 29px 32px;
-  padding: 0 clamp(24px, 6vw, 64px);
+  gap: 29px 20px;
 }
 
-.testimonials__laurel {
+.client2__laurel {
   position: relative;
-  width: 160px;
-  height: 123px;
+  width: 172px;
+  height: 89px;
   flex-shrink: 0;
-  transition: opacity 0.8s ease, transform 0.8s ease;
+  transition: opacity 1.3s ease, transform 1.3s ease; /* was 0.8s — too quick to read as a fade+rise */
 }
 
-/* JS-only hidden state — added right before the section is observed and
-   removed (staggered per laurel) once it scrolls into view. Never set in
-   plain CSS, so if JS fails to run the laurels are simply visible. */
-.testimonials__laurel.is-hidden {
+/* JS-only hidden state (initTestimonialLaurels in main.js) — added right
+   before the section is observed and removed (staggered left to right)
+   once it scrolls into view. Never set in plain CSS, so if JS fails to
+   run the laurels are simply visible — same convention as
+   .testimonials__laurel.is-hidden above. */
+.client2__laurel.is-hidden {
   opacity: 0;
-  transform: translateY(28px);
+  transform: translateY(50px); /* was 28px — too short a rise to notice */
 }
 
-.testimonials__laurel-leaf {
+.client2__laurel-leaf {
   position: absolute;
   top: 0;
-  width: 58.862px;
-  height: 123px;
+  width: 42.113px;
+  height: 88px;
 }
 
-.testimonials__laurel-leaf--left {
+.client2__laurel-leaf--left {
   left: 0;
 }
 
-.testimonials__laurel-leaf--right {
+.client2__laurel-leaf--right {
   right: 0;
 }
 
-.testimonials__laurel-text {
+.client2__laurel-text {
   position: absolute;
   left: 50%;
-  top: 31px;
+  top: 15px;
   transform: translateX(-50%);
-  width: 124px;
+  width: 132px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -546,157 +651,257 @@ a {
   color: #262829;
 }
 
-.testimonials__laurel-score {
-  font-family: var(--font-display);
+.client2__laurel-score {
+  font-family: 'General Sans', var(--font-display);
   font-weight: 700;
   font-size: 24px;
-  line-height: 1.2;
+  line-height: 29px;
 }
 
-.testimonials__laurel-label {
-  font-family: var(--font-body);
+.client2__laurel-label {
+  font-family: 'General Sans', var(--font-body);
+  font-weight: 500;
   font-size: 12px;
 }
 
-.testimonials__marquee {
-  width: 100%;
-  overflow: hidden;
+/* Kinetic block-sweep reveal (shared .kl/.kl__text/.kl__block component,
+   see styles.css's Numbers Tell the Story comment) — same effect as that
+   section's stat labels and Expertise's lede, just this section's own
+   accent color instead of the component's default blue. Scoped trigger
+   class (.is-label-revealing, not the shared .is-revealing) for the same
+   reason WWD's cards and Expertise's lede use their own scoped classes.
+   Wrapped at runtime by initClient2LabelReveal() in main.js. */
+.client2__laurel-label .kl__block {
+  background: #ffb349;
 }
 
-.testimonials__track {
+.client2.is-label-revealing .kl__block {
+  animation: kinetic-sweep-left var(--kdur, 0.5s) cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation-delay: var(--kd, 0s);
+}
+
+.client2.is-label-revealing .kl__text {
+  animation: kinetic-text-in var(--kdur, 0.5s) steps(1, end) both;
+  animation-delay: var(--kd, 0s);
+}
+
+.client2__marquee {
+  /* A plain block sibling of .client2__inner (see the HTML comment there),
+     not nested inside its padded flex column — .client2 itself has no
+     horizontal padding, so this is already edge-to-edge with nothing to
+     cancel. (An earlier version nested it inside .client2__inner and tried
+     to cancel that padding with negative margins, but a flex column's
+     align-items:center centers a stretched item's *margin box*, which
+     absorbed the negative margins into the centering math instead of
+     actually shifting it — full-bleed never took effect.) margin-top
+     replaces the flex `gap` .client2__inner used to provide between the
+     heading row and this; margin-bottom replaces the bottom padding
+     .client2__inner used to provide after this, back when this was its
+     last child. */
+  width: 100%;
+  margin-top: 76px;
+  margin-bottom: clamp(88px, 12vw, 160px);
+  overflow: hidden;
+  backdrop-filter: blur(4.5px);
+  -webkit-backdrop-filter: blur(4.5px);
+}
+
+.client2__track {
   display: flex;
   width: max-content;
   transform: translateX(-50%);
 }
 
-.testimonials__set {
+.client2__set {
   display: flex;
   gap: 40px;
   padding-left: 40px;
 }
 
-.testimonials__quote {
+.client2__quote {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
+  justify-content: center;
   flex-shrink: 0;
+  width: 342px;
+  height: 120px;
+  padding: 20px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid #e5eaf3;
+  border-radius: 2px;
 }
 
-.testimonials__quote p {
-  width: 300px;
-  font-family: var(--font-body);
-  font-weight: 400;
+.client2__quote p {
+  width: 100%;
+  font-family: 'General Sans', var(--font-body);
+  font-weight: 500;
   font-size: 14px;
-  letter-spacing: -0.0165em;
+  line-height: normal;
+  letter-spacing: -0.66px;
   text-align: justify;
   color: #262829;
 }
 
-.testimonials__bracket {
-  flex-shrink: 0;
-  width: 12.1px;
-  height: 87.084px;
+@media (max-width: 720px) {
+  .client2__head {
+    justify-content: center;
+    text-align: center;
+  }
+  .client2__heading {
+    white-space: normal;
+  }
+  .client2__ahead {
+    display: none;
+  }
 }
 
-.testimonials__bracket--open {
-  transform: scaleY(-1) rotate(180deg);
-}
-
-/* ── Credibility (Figma node 193:306) ────────────────────────────────────
-   Deliberately light — a bright, mapped "numbers" band breaking the dark
-   theme, per the referenced design. Kept isolated from .stat-grid/.stat-card
-   (shared with .trust below) so this section's light-theme values never
-   leak into that dark section. */
-.credibility {
+/* ── Numbers Tell the Story → What We Do: shared sticky background ────────
+   ONE topography canvas for the entire .story-wrap (Numbers Tell the Story
+   through the feature cards) — position:sticky, not absolute, so it's
+   physically the same never-scrolling canvas the whole time instead of a
+   tall element different portions of which scroll past. That's what
+   guarantees no seam: two separate canvases can never share one continuous
+   contour pattern even if their flat colors match, since each is its own
+   independent shader/noise field. Sized to just 100vh (see
+   initNumbersStage() in main.js), reused across every stage rather than
+   needing to span the full scroll-jacked height. */
+.story-wrap {
   position: relative;
-  min-height: 332px;
+  margin-top: -100svh; /* pulled up into .hero-pin's stick budget — see the comment on .hero-pin/.hero above */
+}
+
+/* .topo-bg (position:sticky + margin-bottom:-100vh, below) keeps rendering
+   roughly 100vh past .story-wrap's real end in this Chrome build — a
+   sticky-positioning quirk with the negative-margin trick — which used to
+   paint over the next section (Expertise), hiding its dark-on-light
+   heading text under the canvas's dark background.
+   Wrapping .topo-bg in an overflow:hidden ancestor (tried first) does stop
+   the overrun, but ANY overflow:hidden ancestor becomes .topo-bg's sticky
+   reference frame — and since that wrapper itself only ever moves with
+   normal page scroll (it isn't the real viewport/document scroller),
+   .topo-bg stopped being sticky altogether and just scrolled away with the
+   page instead of pinning, which is a far worse seam (a hard line where
+   the canvas's own edge used to be, mid-section, not just at the boundary).
+   The actual fix is JS-driven instead — see the storyWrap visibility check
+   in initNumbersStage() in main.js, which explicitly hides .topo-bg once
+   scroll passes .story-wrap's real bottom edge, leaving this sticky setup
+   itself untouched. */
+.topo-bg {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 0;
+  margin-bottom: -100vh;
+  pointer-events: none;
+  /* Fallback if the WebGL background fails to load entirely. */
+  background: linear-gradient(180deg, #f1f1f1 0%, #f1f1f1 50%, #1c1d1e 75%);
+}
+
+/* ── Numbers Tell the Story (Figma node 272-836) ─────────────────────────
+   Reuses .services__sphere (same elements/animation as "What we do" used
+   to) with its own count-up. .numbers-pin is the tall scroll-jacked wrapper
+   (height set by initNumbersStage() in main.js) whose extra scroll room is
+   spent in order on: holding this content in place, floating it up +
+   fading it, then a fast light→dark flip on the shared background above —
+   .numbers-sticky is what actually pins for that whole distance. */
+.numbers-pin {
+  position: relative;
+}
+
+.numbers-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 100vh;
+  overflow: hidden;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f6f7f8;
-  padding: 56px clamp(24px, 6vw, 64px);
-  overflow: hidden;
 }
 
-.credibility__map {
-  position: absolute;
-  inset: 0;
+.topo-bg > canvas {
+  display: block;
   width: 100%;
   height: 100%;
-  display: block;
 }
 
-.credibility__content {
+.numtell__inner {
   position: relative;
   z-index: 1;
+  width: 100%;
+  max-width: 1180px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  pointer-events: none;
+  gap: 28px;
+  /* Top padding bumped higher than bottom on purpose — .numtell is
+     vertically centered now (100vh), so this nudges the title down from
+     the very top rather than just padding both sides equally. */
+  padding: clamp(140px, 18vw, 240px) clamp(24px, 6vw, 64px) clamp(88px, 12vw, 160px);
 }
 
-.credibility__heading {
+.numtell__title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.numtell__title-cursive {
+  display: block;
+  width: min(459px, 60vw);
+  height: auto;
+  /* Figma's literal -51px overlap, calibrated for this asset's own 459px
+     width — a fixed px value on purpose: percentage margins resolve
+     against the *container's* width, not the image's own size, so a %
+     here would badly overshoot once the container is wider than the
+     image itself. */
+  margin-bottom: -51px;
+}
+
+.numtell__title-sub {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 24px;
-  letter-spacing: -0.0275em;
-  text-align: center;
+  font-size: clamp(24px, 3.6vw, 36px);
+  letter-spacing: -0.66px;
   color: #262829;
 }
 
-.numbers-grid {
+.numtell__stats {
   display: flex;
-  align-items: stretch;
-  border: 1px solid #ced1d5;
-  border-radius: 4px;
-  overflow: hidden;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 60px;
 }
 
-.numbers-card {
-  position: relative;
+.numtell__stat {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
-  gap: 8px;
-  width: 261.75px;
-  padding: 24px 28px 28px;
-  background: rgba(255, 255, 255, 0.5);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
 }
 
-.numbers-card + .numbers-card {
-  border-left: 1px solid #e7ebf0;
-}
-
-.numbers-card__value {
-  font-family: var(--font-display);
+.numtell__value {
+  font-family: 'General Sans', var(--font-display);
   font-weight: 700;
-  font-size: 44.8px;
-  letter-spacing: -0.01em;
+  font-size: clamp(48px, 7vw, 100px);
+  line-height: 1;
+  letter-spacing: -0.66px;
+  color: #262829;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0;
+}
+
+.numtell__label {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(16px, 1.8vw, 24px);
   color: #262829;
 }
 
-.numbers-card__label {
-  font-family: var(--font-body);
-  font-weight: 500;
-  font-size: 12px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-
-/* ── Services (Figma node 193:416) ───────────────────────────────────────
-   Light, matching the credibility band above it: two decorative sphere
-   images bleed off the section edges behind a centered content column. */
-.services {
-  position: relative;
-  background: #f0f2f4;
-  overflow: hidden;
-}
-
+/* Two decorative sphere images, shared component — originally built for the
+   (now-removed) "What we do" section, reused as-is by #numbers-alt below. */
 .services__sphere {
   position: absolute;
   top: 180px;
@@ -720,156 +925,158 @@ a {
   transform: scaleY(-1) rotate(180deg);
 }
 
-.services .section-heading {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 8px;
-  color: #262829;
+/* Scoped override, not a change to .services__sphere itself — kept as its
+   own rule rather than changed in place, in case another section reuses
+   the default top:180px later. */
+#numbers-alt .services__sphere {
+  top: 150px;
 }
 
-.services__more {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  color: #97a3b8;
-  margin-bottom: 40px;
-}
-
-.services__more span {
-  transition: transform 0.25s ease;
-}
-
-.services__more:hover span {
-  transform: translateX(3px);
-}
-
-.service-grid {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-.service-card {
-  position: relative;
-  background: rgba(233, 233, 233, 0.5);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  border: 1px solid #fff;
-  border-radius: 10px;
-  padding: 30px 26px;
+/* ── What We Do: title card (Figma node 273:1080) ─────────────────────────
+   Heading/line/tag classes shared with the sticky panel in the "What We Do
+   v2" block further down — see that comment for the full sequence these
+   belong to. */
+.connect__row {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow: hidden;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-
-.service-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 18px 32px -18px rgba(38, 40, 41, 0.35);
-}
-
-.service-card__icon {
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: #2479cb;
+  gap: 15px;
+  width: 100%;
+  /* No margin-bottom here — the 15px gap down to the tag is
+     .wwd2-tag-wrap's own margin-top instead, since the tag now lives in a
+     separate sibling wrapper below .wwd2-row-wrap, not inside it. */
+}
+
+.connect__heading {
+  font-family: 'General Sans', var(--font-display);
+  font-weight: 600;
+  font-size: clamp(32px, 4.4vw, 64px);
+  letter-spacing: -0.66px;
   color: #fff;
-  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden; /* the masked-reveal clip boundary for .connect__heading-mask below */
 }
 
-.service-card__icon svg {
-  width: 22px;
-  height: 22px;
+.connect__line {
+  flex: 1 0 0;
+  height: 1px;
+  background: #fff;
+  transform-origin: left;
 }
 
-.service-card__title {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 1.05rem;
-  line-height: 1.3;
-  color: #262829;
-}
-
-.service-card__desc {
-  font-family: var(--font-body);
-  font-size: 0.88rem;
-  line-height: 1.55;
-  color: #262829;
-}
-
-@media (max-width: 860px) {
-  .service-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 560px) {
-  .service-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ── Expertise (Figma node 197:1360) ─────────────────────────────────────
-   Light, continuing the same band as Numbers/Services above it. Three
-   alternating image+text rows instead of the old three-card grid — image
-   left/right/left, middle content never moves. */
-.capabilities {
-  background: #f8f8f8;
-}
-
-.expertise__inner {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: clamp(88px, 12vw, 160px) clamp(24px, 6vw, 64px);
-  display: flex;
-  flex-direction: column;
-  gap: 120px;
-}
-
-.expertise__intro {
-  display: flex;
-  justify-content: space-between;
-  gap: 40px;
-  flex-wrap: wrap;
-}
-
-.expertise__heading {
-  font-family: var(--font-display);
+.connect__tag {
+  display: inline-block;
+  overflow: hidden;
+  background: #218ef8;
+  padding: 0 24px;
+  font-family: 'General Sans', var(--font-display);
   font-weight: 700;
-  font-size: clamp(1.8rem, 3.6vw, 2.75rem);
-  letter-spacing: -0.015em;
-  color: #262829;
-  flex-shrink: 0;
+  font-size: clamp(40px, 6.6vw, 96px);
+  line-height: 1.35;
+  letter-spacing: -0.66px;
+  color: #fff;
+  white-space: nowrap;
 }
 
-.expertise__lead {
-  font-family: var(--font-body);
-  font-size: 1.05rem;
-  line-height: 1.6;
-  color: #262829;
-  max-width: 52ch;
-  flex: 1;
+/* Entrance choreography, fully sequential (each waits for the previous to
+   finish, no overlap): heading does a masked text reveal — .connect__heading
+   itself is the mask (overflow:hidden, exactly the text's own box, no
+   extra height), .connect__heading-mask (the actual text) sits below it
+   fully opaque and slides up into view. Unlike a fade, the text is never
+   half-transparent mid-transition — it's either fully hidden behind the
+   mask edge or fully revealed. THEN the line grows out to the right, THEN
+   the blue tag fades in under it — triggered once wwd2-pin's own scroll
+   has actually begun (see the seamComplete + REVEAL_START_SCROLL gating in
+   initWwdSequence()), i.e. only once .wwd2-title-group is already sitting
+   at its JS-computed centered offset, so the reveal itself happens right
+   at that settled spot rather than while still scrolling into view. Default
+   state above is the safe fallback (fully in place); .is-armed only ever
+   gets added by JS right before arming, so if motion is reduced everything
+   simply stays visible instead of getting stuck hidden. */
+.connect__heading-mask {
+  display: inline-block;
 }
 
-/* ── Kinetic typography: Expertise intro reveal ───────────────────────────
-   Purely additive — .kl wraps the whole heading as one unit, and each full
-   wrapped line of the lead paragraph as another, split out of the existing
-   text at runtime. Layout, font, size, and color are untouched; only
-   opacity (text) and transform (the sweeping block) animate, and both
-   settle back to the exact static appearance. Every unit sweeps the same
-   left-to-right direction — no direction variation. Duration is per-unit
-   via --kdur (heading fast, paragraph lines slower); delay via --kd. */
+.wwd2-pin.is-armed .connect__heading-mask {
+  transform: translateY(110%);
+}
+
+.wwd2-pin.is-armed .connect__line {
+  transform: scaleX(0);
+}
+
+/* The tag box itself has no fade/slide of its own — only opacity:0/1, no
+   transform, and the 0/1 switch is a plain instant JS write (see
+   renderChars's call site in initWwdSequence), timed to land exactly when
+   the characters inside start their own staggered rise. A separate
+   `.is-revealing` CSS animation on the box used to run at the same time as
+   that per-character animation (connect-char-in, below) — two independent
+   entrances for the same text, landing a beat apart, read as the tag
+   fading in and then its letters jumping in again right after. */
+.wwd2-pin.is-armed .connect__tag {
+  opacity: 0;
+}
+
+.wwd2-pin.is-armed.is-revealing .connect__heading-mask {
+  animation: connect-mask-reveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.wwd2-pin.is-armed.is-revealing .connect__line {
+  animation: connect-grow 0.5s cubic-bezier(0.65, 0, 0.35, 1) 0.6s forwards;
+}
+
+@keyframes connect-mask-reveal {
+  from { transform: translateY(110%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes connect-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* Split-text rise for the tag's characters (initWwdSequence() in main.js
+   splits the string into one span per character). Default state is fully
+   in place — .is-in is only ever added by JS. */
+.connect__char {
+  display: inline-block;
+}
+
+.wwd2-pin.is-armed .connect__char {
+  opacity: 0;
+  transform: translateY(120%);
+}
+
+.connect__char.is-in {
+  animation: connect-char-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--char-delay, 0s);
+}
+
+@keyframes connect-char-in {
+  from { opacity: 0; transform: translateY(120%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wwd2-pin.is-armed .connect__heading-mask,
+  .wwd2-pin.is-armed .connect__line,
+  .wwd2-pin.is-armed .connect__tag,
+  .wwd2-pin.is-armed .connect__char {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}
+
+/* ── Kinetic typography: blue-block sweep reveal ──────────────────────────
+   Originally built for the (now-removed) Expertise section's heading/lead
+   paragraph; reused since for Numbers Tell the Story's stat labels
+   (initNumtellLabelReveal in main.js) and any future .kl usage. Purely
+   additive — .kl wraps a unit of text (a heading, a wrapped line, a label)
+   split out of the existing text at runtime. Layout, font, size, and color
+   are untouched; only opacity (text) and transform (the sweeping block)
+   animate, and both settle back to the exact static appearance. Every unit
+   sweeps the same left-to-right direction — no direction variation.
+   Duration is per-unit via --kdur; delay via --kd. */
 .kl {
   position: relative;
   display: inline-block;
@@ -889,12 +1096,22 @@ a {
   transform: translateX(-110%);
 }
 
-.is-revealing .kl__block {
+/* Scoped to #numbers-alt specifically (not a bare `.is-revealing .kl__block`)
+   — #wwd2 also carries `.is-revealing` (for its own, unrelated heading/tag
+   entrance, triggered well before any card appears) and WWD's cards' own
+   .kl units live inside #wwd2, so a bare selector here matched them too: it
+   fired their sweep the instant #wwd2 got `.is-revealing`, long before the
+   cards' own scroll-driven entrance even started, leaving them fully swept
+   (opacity:1 via the `forwards` fill) by the time a card actually appeared
+   on screen. WWD's cards use their own scoped `.wwd2-card.is-text-revealing`
+   trigger below instead, same fix as Expertise's lede and client2's laurel
+   labels already apply for the same reason. */
+#numbers-alt.is-revealing .kl__block {
   animation: kinetic-sweep-left var(--kdur, 0.42s) cubic-bezier(0.65, 0, 0.35, 1) both;
   animation-delay: var(--kd, 0s);
 }
 
-.is-revealing .kl__text {
+#numbers-alt.is-revealing .kl__text {
   animation: kinetic-text-in var(--kdur, 0.42s) steps(1, end) both;
   animation-delay: var(--kd, 0s);
 }
@@ -923,139 +1140,319 @@ a {
   }
 }
 
-.expertise__rows {
+/* ── What We Do: title + tag + feature cards (Figma 273:1080, 273:1136) ───
+   #wwd2 is a plain wrapper; .wwd2-sticky (its one pinned child, plain CSS
+   position:sticky, spans this whole section's height) does the pinning —
+   everything inside it is positioned/animated by initWwdSequence() in
+   main.js off scroll progress, in order: (1) heading/line/tag fade in
+   together, held in place by a JS-computed translateY on .wwd2-title-group
+   so they read as vertically centered; (2) the tag fades + lifts slightly
+   (a small local move, not a real scroll-away) well before it would ever
+   reach the heading; (3) .wwd2-title-group's translateY animates back to
+   0, physically moving the heading (now alone) up to this flex column's
+   own resting spot — top:120px via padding-top below — which is what makes
+   it feel like it "sticks" once the cards take over; (4) the six cards
+   slide + fade in from the right; (5) the row slides horizontally until
+   the sixth clears the right padding. */
+.wwd2-pin {
+  position: relative;
+}
+
+.wwd2-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 64px;
+  justify-content: flex-start;
+  /* .wwd2-card caps out at max-height:516px (Figma ceiling) regardless of
+     viewport height, so on a tall/large screen .wwd2-cards-viewport (flex:
+     1 1 auto, gets whatever's left after the heading) ends up much taller
+     than the cards actually need — all of that leftover used to land as
+     dead space below the cards. Scaling padding-top/gap with vh (instead
+     of fixed px) claims back a share of that extra room at the top and
+     around the heading as the viewport gets taller, so the leftover reads
+     as more evenly spread rather than dumped entirely at the bottom. The
+     px floor keeps small/short viewports pixel-identical to before. */
+  padding-top: clamp(120px, 18vh, 240px);
+  gap: clamp(32px, 7vh, 100px);
 }
 
-.expertise__row {
-  display: flex;
-  align-items: center;
-  gap: 80px;
+/* Custom cursor (initWwdCursor() in main.js) replaces the system pointer
+   with a small blue dot while over this section — mouse-only, matching
+   the @media (hover: hover) guard the JS uses. */
+@media (hover: hover) {
+  .wwd2-sticky {
+    cursor: none;
+  }
 }
 
-.expertise__image {
+.wwd2-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(33, 142, 248, 0.75); /* #218EF8 @ 75% */
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.wwd2-cursor.is-visible {
+  opacity: 1;
+}
+
+.wwd2-title-group {
   flex-shrink: 0;
-  width: 360px;
-  aspect-ratio: 360 / 540;
-  border-radius: 8px;
-  background:
-    linear-gradient(155deg, rgba(36, 121, 203, 0.1), rgba(95, 203, 232, 0.14)),
-    #eceef1;
-  position: relative;
+}
+
+.wwd2-row-wrap {
+  padding: 0 clamp(24px, 6vw, 64px);
+  flex-shrink: 0;
+}
+
+.wwd2-tag-wrap {
+  padding: 0 clamp(24px, 6vw, 64px);
+  margin-top: 15px;
+  flex-shrink: 0;
   overflow: hidden;
+  transition: height 0.2s ease, margin-top 0.2s ease;
 }
 
-.expertise__image::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 40px;
-  height: 40px;
-  background: rgba(151, 163, 184, 0.4);
-  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>') center / contain no-repeat;
+/* Collapsed by JS (initWwdSequence) the moment the tag finishes fading out,
+   so its box stops holding open space between the heading and the cards —
+   without this, the (by-then invisible) tag still ate ~130px+ of layout
+   height, reading as a much bigger gap than the 32px above/below it. */
+.wwd2-tag-wrap.is-collapsed {
+  height: 0;
+  margin-top: 0;
 }
 
-/* Product Identity uses a real (placeholder) video instead of the empty
-   image slot — no icon needed, and the video fills the same rounded box. */
-.expertise__image--video::after {
-  display: none;
+/* The cards region takes whatever vertical space is left after the title
+   block, rather than assuming a fixed viewport height — min-height:0 is
+   required for a flex child to actually shrink below its content size. */
+.wwd2-cards-viewport {
+  position: relative;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Needs to clip horizontally (hide cards not yet scrolled into view) but
+     NOT vertically (a hovered .wwd2-card__text scales/lifts/tilts well
+     past this box's own top edge, deliberately overlapping the heading
+     above and the next card over — see its hover rule below). `overflow`
+     can't do both at once — mixing overflow-x:hidden with overflow-y:visible
+     computes the visible axis to `auto` instead, which still clips. A
+     clip-path with per-side inset() values doesn't have that limitation:
+     left/right pinned to this box's own edges (matches what overflow-x:
+     hidden would clip), top/bottom pushed far outside (effectively no
+     clip at all in that direction). Confirmed cards 5–6 still stay
+     correctly hidden off-screen with this in place. */
+  overflow: visible;
+  clip-path: inset(-9999px 0 -9999px 0);
 }
 
-.expertise__video {
-  position: absolute;
-  /* 1px past the container on every side (clipped by .expertise__image's
-     overflow:hidden) — object-fit:cover can leave a sub-pixel gap at the
-     edge otherwise, showing a thin sliver of the video's own black
-     background. */
-  inset: -1px;
-  width: calc(100% + 2px);
-  height: calc(100% + 2px);
+.wwd2-track {
+  display: flex;
+  align-items: stretch;
+  gap: 32px;
+  padding-left: clamp(24px, 6vw, 64px);
+  width: max-content;
+  height: 100%;
+}
+
+.wwd2-card {
+  flex: 0 0 320px;
+  width: 320px;
+  /* Figma's 516px is the ceiling (generous, tall viewports); on anything
+     shorter, the card fills whatever height .wwd2-cards-viewport actually
+     has left rather than overflowing past the bottom of the screen. */
+  height: 100%;
+  max-height: 516px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* Wraps .wwd2-card__body + .wwd2-card__bar as one unit — the part that
+   lifts, tilts and inverts to light on hover, below — leaving
+   .wwd2-card__media (the image) untouched underneath. */
+.wwd2-card__text {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: relative;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+}
+
+/* Figma staggers each card's text-block height on purpose (227/380/311/
+   240/360/242px out of a 516px card) rather than letting them all match
+   real content length. Expressed as % of the card's own height (not a
+   fixed px min-height) so the same stagger rhythm scales down together
+   with the card when a shorter viewport shrinks .wwd2-card below 516px —
+   a fixed px min-height would instead keep claiming full space and push
+   the media box (and the card's bottom edge) off-screen. */
+.wwd2-card:nth-child(1) .wwd2-card__text { min-height: 44%; }
+.wwd2-card:nth-child(2) .wwd2-card__text { min-height: 73.6%; }
+.wwd2-card:nth-child(3) .wwd2-card__text { min-height: 60.3%; }
+.wwd2-card:nth-child(4) .wwd2-card__text { min-height: 46.5%; }
+.wwd2-card:nth-child(5) .wwd2-card__text { min-height: 69.8%; }
+.wwd2-card:nth-child(6) .wwd2-card__text { min-height: 46.9%; }
+
+.wwd2-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 30px 24px 20px;
+  border: 1px solid #3e3e3e;
+  border-bottom: none;
+  background: #1c1d1e;
+  flex: 1 1 auto;
+  transition: background 0.3s ease;
+}
+
+.wwd2-card__title {
+  font-family: 'General Sans', var(--font-display);
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 28px;
+  color: #fff;
+  transition: color 0.3s ease;
+}
+
+.wwd2-card__desc {
+  font-family: 'General Sans', var(--font-body);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 21.824px;
+  color: rgba(255, 255, 255, 0.75);
+  transition: color 0.3s ease;
+}
+
+.wwd2-card__bar {
+  height: 2px;
+  flex-shrink: 0;
+  background: #2479cb;
+}
+
+/* Card title/description entrance: the same kinetic block-sweep as Numbers
+   Tell the Story's stat labels (.kl/.kl__text/.kl__block, see that comment
+   block) — wrapped at runtime by initWwdSequence() in main.js. .kl is
+   inline-block by default (fine for a short single-line label); the title
+   and description here can wrap to multiple lines, so both need to be
+   block-level and full-width for the sweep block to size to the actual
+   wrapped text instead of just its longest line.
+   Triggered via `.is-text-revealing` on the card itself, not the shared
+   `.is-revealing` — #wwd2 already carries `.is-revealing` (for the
+   heading/tag entrance) well before any card appears, and `.is-revealing
+   .kl__block` is a bare descendant selector, so reusing it here would fire
+   every card's sweep at once instead of staggered with each card's own
+   entrance. */
+.wwd2-card__title .kl,
+.wwd2-card__desc .kl {
+  display: block;
+  width: 100%;
+}
+.wwd2-card__title .kl__text,
+.wwd2-card__desc .kl__text {
+  display: block;
+}
+.wwd2-card.is-text-revealing .kl__block {
+  animation: kinetic-sweep-left var(--kdur, 0.5s) cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation-delay: var(--kd, 0s);
+}
+.wwd2-card.is-text-revealing .kl__text {
+  animation: kinetic-text-in var(--kdur, 0.5s) steps(1, end) both;
+  animation-delay: var(--kd, 0s);
+}
+
+/* Hover: the text block grows, lifts, tilts and inverts to a light card —
+   the image below is untouched. Deliberately escapes .wwd2-cards-viewport's
+   own box (see the clip-path there) to overlap the heading above and the
+   next card over, for a real sense of depth.
+
+   Driven by `.is-active-hover` (set by initWwdCardHover() in main.js), not
+   plain `:hover` — plain `:hover` tracks each card's real, untransformed
+   320px-wide column, but the escape above reaches well past that column
+   into the next card's real column too. Right at that boundary the mouse
+   is genuinely inside the NEXT card's hitbox even though it still looks
+   like it's over the lifted card's escaped shape, so `:hover` would flip
+   to the next card — which, being later in DOM order, would then paint
+   over the card the user actually meant to point at. The JS adds a short
+   debounce before committing a switch, so a mouse merely grazing that
+   boundary doesn't steal the lift away. */
+/* z-index on .wwd2-card__text alone only wins against its OWN card's other
+   children (.wwd2-card__media) — every .wwd2-card is already its own
+   stacking context (the continuous `transform: translateX(...)` JS applies
+   every frame, see initWwdSequence, creates one even once settled at 0px),
+   so cross-card paint order is decided at the .wwd2-card level, which
+   without this would just fall back to DOM order regardless of which card
+   is actually hovered. Flex items honor z-index even at position:static,
+   so this alone is enough — the active card wins over EVERY neighbor, not
+   just the one on whichever side its escape happens to lean toward. */
+.wwd2-card.is-active-hover {
+  z-index: 10;
+}
+
+.wwd2-card.is-active-hover .wwd2-card__text {
+  transform: translateY(-70px) scale(1.15) rotate(-5deg);
+  box-shadow: -14px 33px 8px rgba(0, 0, 0, 0.25);
+  z-index: 5;
+}
+.wwd2-card.is-active-hover .wwd2-card__body {
+  background: #dfdfdf;
+}
+.wwd2-card.is-active-hover .wwd2-card__title {
+  color: #262829;
+}
+.wwd2-card.is-active-hover .wwd2-card__desc {
+  color: rgba(38, 40, 41, 0.75);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wwd2-card__text {
+    transition: none;
+  }
+}
+
+.wwd2-card__media {
+  flex: 1 1 auto;
+  min-height: 120px;
+  margin-top: 32px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: none;
+}
+
+.wwd2-card__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
-.expertise__content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+/* Staggered slide-in from the right (not a rise from below), scroll-driven
+   throughout (see the per-card loop in initWwdSequence()'s update()) rather
+   than a timed CSS animation — each card eases quickly to a "parked" spot,
+   then needs further scrolling to glide the rest of the way into place, so
+   it always tracks exactly how far the user has actually scrolled instead
+   of racing ahead on its own clock. Default state above is the safe
+   fallback (fully in place); .is-armed only ever gets added by JS right
+   before it can trigger, so a JS failure or prefers-reduced-motion just
+   leaves every card visible instead of stuck hidden. */
+.wwd2-pin.is-armed .wwd2-card {
+  opacity: 0;
+  transform: translateX(800px);
 }
 
-.expertise__meta {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.expertise__title {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 1.1rem;
-  color: #262829;
-}
-
-.expertise__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.expertise__tag {
-  border: 1px solid #e5eaf3;
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-family: var(--font-body);
-  font-size: 12px;
-  color: #97a3b8;
-}
-
-.expertise__desc {
-  font-family: var(--font-body);
-  font-size: 0.875rem;
-  line-height: 1.6;
-  color: #97a3b8;
-}
-
-.expertise__link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 600;
-  color: #2479cb;
-}
-
-.expertise__link span {
-  transition: transform 0.25s ease;
-}
-
-.expertise__link:hover span {
-  transform: translateX(3px);
-}
-
-@media (max-width: 860px) {
-  .expertise__row,
-  .expertise__row--reverse {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 28px;
-  }
-
-  .expertise__image {
-    width: 100%;
-  }
-
-  /* Row 2's DOM order is content-then-image (so desktop can put the text on
-     the left, image on the right, without a flex-direction reverse). On
-     mobile that DOM order would stack text above image, breaking the
-     image-then-text pattern the other two rows follow — reorder visually
-     so every row is consistently image on top. */
-  .expertise__row--reverse .expertise__image {
-    order: -1;
+@media (prefers-reduced-motion: reduce) {
+  .wwd2-pin.is-armed .wwd2-card {
+    opacity: 1;
+    transform: none;
   }
 }
 
@@ -1147,6 +1544,164 @@ a {
 
 .contact__cta:hover span {
   transform: translateX(2px);
+}
+
+/* ── CTA 2 (Figma node 287:3617) ─────────────────────────────────────────
+   Newer CTA design added below #contact rather than replacing it (same
+   pattern as #client2). .cta2-pin is the scroll-jack wrapper (height set
+   by initCta2Transition() in main.js); .cta2 is its pinned child, exactly
+   the .hero-pin/.hero and .wwd2-pin/.wwd2-sticky pattern. Fixed height:
+   100vh instead of min-height, since it must always fill the viewport
+   while pinned regardless of the card's own current (JS-driven, animated)
+   size. */
+.cta2-pin {
+  position: relative;
+}
+
+.cta2 {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 40px;
+  box-sizing: border-box;
+  /* Flat solid blue — was a white->blue gradient (see git history) to
+     blend seamlessly with .client2's white above. Only actually visible
+     once the card has shrunk back down during the entrance transition
+     (see initCta2Transition()) — while full-bleed, the card's own
+     position:fixed covers this completely. */
+  background: #2c69ce;
+}
+
+/* Pure backdrop now — icon/heading/lead/button live in the sibling
+   .cta2__content instead (see the HTML comment above it for why: its own
+   top position needs to animate independently, in real viewport pixels,
+   without going through .cta2__card's transform:scale). width/height are
+   its RESTING size (initCta2Transition() reads this via getBoundingClientRect
+   as the shrink's target) — during the animated phases, position:fixed +
+   transform take over entirely; width/height stay untouched throughout
+   (see main.js) specifically so silk-background.js's ResizeObserver never
+   fires mid-animation, which is what caused the flicker a transform-only
+   approach avoids. */
+.cta2__card {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 1432px;
+  height: 480px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  /* Fallback only — silk-background.js (素材/silk) injects an opaque
+     <canvas class="silk-canvas"> as this element's first child and fully
+     covers it once WebGL is available; this flat color only shows through
+     if it isn't. */
+  background: #262829;
+}
+
+.cta2__content {
+  /* top is JS-driven (initCta2Transition()); left/right/margin center it
+     horizontally to match .cta2__card exactly, at every card width. The
+     original 88px/60px/60px padding is kept as-is — with top set to align
+     with .cta2__card's own top edge at rest, this padding is what recreates
+     the original inset look, no separate content-vs-card offset math needed. */
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 1432px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 88px 60px 60px;
+  z-index: 1; /* above .cta2__card's silk canvas */
+}
+
+/* Content fade-up, once the card has finished its own full-bleed fade-in
+   (see .is-content-revealing, toggled in initCta2Transition()). Default
+   state above is the safe fallback (fully in place); .is-armed only ever
+   gets added by JS right before arming, and under prefers-reduced-motion
+   initCta2Transition() returns early without ever adding it, so the
+   content simply stays visible instead of getting stuck hidden. */
+.cta2-pin.is-armed .cta2__icon,
+.cta2-pin.is-armed .cta2__heading,
+.cta2-pin.is-armed .cta2__lead,
+.cta2-pin.is-armed .cta2__button {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.cta2-pin.is-armed.is-content-revealing .cta2__icon,
+.cta2-pin.is-armed.is-content-revealing .cta2__heading,
+.cta2-pin.is-armed.is-content-revealing .cta2__lead,
+.cta2-pin.is-armed.is-content-revealing .cta2__button {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cta2-pin.is-armed.is-content-revealing .cta2__heading { transition-delay: 0.1s; }
+.cta2-pin.is-armed.is-content-revealing .cta2__lead { transition-delay: 0.2s; }
+.cta2-pin.is-armed.is-content-revealing .cta2__button { transition-delay: 0.3s; }
+
+.cta2__icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 10px;
+}
+
+.cta2__heading {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(28px, 4.5vw, 50px);
+  line-height: 1.2;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+  margin: 0 0 15px;
+}
+
+.cta2__highlight {
+  color: #ffb349;
+}
+
+.cta2__lead {
+  font-family: 'General Sans', var(--font-body);
+  font-weight: 500;
+  font-size: 20px;
+  line-height: normal;
+  color: #fff;
+  text-align: center;
+  max-width: 720px;
+  margin: 0 0 32px;
+}
+
+.cta2__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: 4px;
+  background: #fff;
+  color: #222;
+  font-family: 'General Sans', var(--font-body);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.26px;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.cta2__button:hover {
+  filter: brightness(0.94);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 720px) {
+  .cta2__heading {
+    white-space: normal;
+  }
 }
 
 /* ── Footer ──────────────────────────────────────────────────────────── */

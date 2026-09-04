@@ -5,8 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>CXC Studio — Design That Moves Business Forward.</title>
 <meta name="description" content="CXC Studio turns ideas, insights, and business goals into purposeful digital experiences that connect with people and create lasting value." />
-<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
-<link href="https://cdn.jsdelivr.net/npm/@fontsource-variable/mona-sans@5/index.css" rel="stylesheet" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin /> <!-- still used for the topography canvas's dynamic OGL import in main.js, even though Mona Sans Variable (also jsdelivr) is gone -->
+<!-- General Sans — site-wide font (--font-display/--font-body in styles.css,
+     plus .raexp's own hardcoded font-family). Only 4 static weights, not a
+     variable font — General Sans has no variable-font source available
+     (checked Fontshare and fontsource). Was previously scoped to just
+     Numbers Tell the Story/Connect/What We Do v2 (the rest of the site ran
+     on Mona Sans Variable, now dropped entirely — nothing references it
+     anymore); those sections' own explicit 'General Sans' font-family
+     declarations are now redundant with the shared default but left as-is,
+     harmless. 400 = What We Do v2's card descriptions; 500 = its card
+     titles; 600 = the "What We Do" headings (Connect + What We Do v2) and
+     most of the site's body text; 700 = the stat numbers, Connect's
+     "to Connect." tag, and most headings. -->
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -51,7 +64,8 @@ finish review, the verdict, and DESIGN.md.
     <div class="glass-shine" aria-hidden="true"></div>
     <div class="glass-tint" aria-hidden="true"></div>
     <a href="#top" class="nav__logo">
-      <img src="img/logo_print_horizon-white.png" alt="CXC Studio" id="nav-logo-img" />
+      <img src="img/logo_print_horizon-white.png" alt="CXC Studio" class="nav__logo-img nav__logo-img--white" />
+      <img src="img/logo_print_horizon.png" alt="" aria-hidden="true" class="nav__logo-img nav__logo-img--color" />
     </a>
     <div class="nav__links">
       <a href="about.html" class="nav__link">About</a>
@@ -66,6 +80,12 @@ finish review, the verdict, and DESIGN.md.
   </div>
 </nav>
 
+<!-- .hero-pin is a 200svh scroll-jack wrapper so .hero (sticky, 100svh) has
+     a full extra viewport of scroll room to sit pinned in before it runs
+     out — .story-wrap (next below, pulled up by margin-top:-100svh) uses
+     exactly that same extra viewport to slide up from below and cover it.
+     See the comment on .hero-pin/.hero in styles.css for the full math. -->
+<div class="hero-pin" id="hero-pin">
 <section class="hero" id="top">
   <div class="hero__vignette" aria-hidden="true"></div>
   <div class="hero__glow" aria-hidden="true"></div>
@@ -83,203 +103,903 @@ finish review, the verdict, and DESIGN.md.
     <p class="hero__sub">We turn ideas, insights, and business goals into purposeful digital experiences that connect with people and create lasting value.</p>
   </div>
 </section>
+</div>
 
-<section class="credibility" id="credibility" data-reveal>
-  <canvas class="credibility__map" id="credibility-map" aria-hidden="true"></canvas>
-  <div class="credibility__content">
-    <h2 class="credibility__heading">Numbers Tell the Story</h2>
-    <div class="numbers-grid">
-      <div class="numbers-card">
-        <span class="numbers-card__value">81%</span>
-        <span class="numbers-card__label">Repeat Client Rate</span>
-      </div>
-      <div class="numbers-card">
-        <span class="numbers-card__value">280+</span>
-        <span class="numbers-card__label">Projects Delivered</span>
-      </div>
-      <div class="numbers-card">
-        <span class="numbers-card__value">3</span>
-        <span class="numbers-card__label">Markets Served</span>
-      </div>
-    </div>
-  </div>
-</section>
+<!-- ============================================================================
+     Numbers Tell the Story → What We Do — Figma 272-836, 273-1080, 273-1136.
+     ONE shared topography canvas (position:sticky, spanning this entire
+     .story-wrap) so there's never a seam between stages — it's the same
+     shader instance the whole way, only its flat CSS background color and
+     uSeamT change, driven by initNumbersStage() in main.js. Three stages,
+     each its own scroll-jacked pin: (1) Numbers Tell the Story holds in
+     place, then floats up + fades, and only once it's fully gone does the
+     background flip to dark (fast); (2) "What We Do" heading + line +
+     rotating tag appear together in normal flow (so they read as centered
+     on entry) — the heading then catches via plain CSS position:sticky
+     while the tag, never sticky, just keeps scrolling normally past it and
+     off; (3) six feature cards rise up under the now-caught heading, then
+     slide horizontally until the sixth clears the right padding. See
+     initNumbersStage() and initWwdSequence() in main.js.
+     ============================================================================ -->
+<div class="story-wrap" id="story">
+  <div class="topo-bg" data-topography aria-hidden="true"></div>
 
-<section class="services" id="services" data-reveal>
+  <div class="numbers-pin" id="numbers-pin">
+  <section class="numbers-sticky" id="numbers-alt">
   <div class="services__sphere services__sphere--wire" aria-hidden="true"></div>
   <div class="services__sphere services__sphere--color" aria-hidden="true"></div>
-  <div class="section-inner">
-    <h2 class="section-heading">What we do</h2>
-    <a href="about.html" class="services__more">More about us <span aria-hidden="true">→</span></a>
-    <div class="service-grid">
-      <div class="service-card">
-        <span class="service-card__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="15" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5" /><line x1="6" y1="19" x2="13" y2="19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><rect x="17" y="8" width="6" height="12" rx="1.2" stroke="currentColor" stroke-width="1.5" /></svg>
-        </span>
-        <h3 class="service-card__title">Web &amp; Mobile Development</h3>
-        <p class="service-card__desc">Craft beautiful, user-friendly apps and websites that drive results.</p>
+  <div class="numtell__inner">
+    <div class="numtell__title">
+      <svg id="numtell-number-anim" class="numtell__title-cursive numbers-anim" width="459" height="115" viewBox="0 0 459 115" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Numbers">
+        <style>
+          .numbers-anim { --draw-duration: 1s; --pen: 34; }
+          .numbers-anim .cl {
+            fill: none;
+            stroke: #218EF8;
+            stroke-width: var(--pen);
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 1 1;
+            stroke-dashoffset: 0;
+          }
+          /* Default state above is the safe fallback (fully drawn, static) —
+             .is-armed only ever gets added by JS right before observing, so
+             if IntersectionObserver is unsupported or motion is reduced,
+             this simply stays fully drawn instead of getting stuck hidden. */
+          .numbers-anim.is-armed .cl { stroke-dashoffset: -1; }
+          .numbers-anim.is-armed.is-playing .cl { animation: nd var(--draw-duration) linear forwards; }
+          @keyframes nd { to { stroke-dashoffset: 0; } }
+          @media (prefers-reduced-motion: reduce) {
+            .numbers-anim.is-armed .cl { animation: none; stroke-dashoffset: 0; }
+          }
+        </style>
+        <defs>
+          <clipPath id="numbers-letters" clipPathUnits="userSpaceOnUse">
+            <path d="M406.766 77.8238C409.753 77.8238 412.483 76.0318 414.958 72.4478C417.518 68.7784 419.31 65.1091 420.334 61.4398C421.358 57.6851 421.87 54.6984 421.87 52.4798C421.87 51.8824 421.401 51.5838 420.462 51.5838C419.609 51.5838 418.585 52.0531 417.39 52.9918L400.622 65.9198C399.427 66.6024 398.062 66.9438 396.526 66.9438C394.99 66.9438 394.222 66.3891 394.222 65.2798C394.222 64.5118 394.308 63.9998 394.478 63.7438C394.734 63.4878 395.374 63.0611 396.398 62.4638C402.713 58.1118 411.332 51.0291 422.254 41.2158C423.534 39.5091 424.686 38.6558 425.71 38.6558C426.734 38.6558 428.441 38.9971 430.83 39.6798C433.22 40.2771 434.414 41.0024 434.414 41.8558C434.414 46.9758 433.945 51.6264 433.006 55.8078C432.067 59.9891 431.086 63.1891 430.062 65.4078C429.123 67.5411 428.654 68.6931 428.654 68.8638C428.654 69.0344 428.74 69.1198 428.91 69.1198C429.081 69.1198 429.422 68.9918 429.934 68.7358C436.334 65.4931 444.484 60.2024 454.382 52.8638L457.454 50.5598C458.222 51.1571 458.606 51.8824 458.606 52.7358C458.606 53.5891 458.222 54.3571 457.454 55.0398C457.283 55.0398 455.065 56.8318 450.798 60.4158C446.617 63.9998 441.924 67.9251 436.718 72.1918C431.598 76.3731 426.094 80.2131 420.206 83.7118C414.318 87.2104 409.753 88.9598 406.51 88.9598C398.489 88.9598 394.478 84.1384 394.478 74.4958C394.478 73.7278 394.777 73.0451 395.374 72.4478C396.057 71.7651 396.91 71.4238 397.934 71.4238C397.934 71.8504 398.147 72.5331 398.574 73.4718C399.086 74.3251 399.598 75.0504 400.11 75.6478C401.646 77.0984 403.865 77.8238 406.766 77.8238Z"/>
+            <path d="M343.933 63.232C348.627 59.9894 353.533 56.4907 358.653 52.736C355.923 50.8587 354.173 49.024 353.405 47.232C353.149 46.6347 353.021 46.208 353.021 45.952C353.021 44.2454 353.576 43.136 354.685 42.624C355.795 42.0267 357.587 41.728 360.061 41.728C361 41.728 363.773 42.88 368.381 45.184C372.989 47.488 375.891 48.64 377.085 48.64C378.365 48.64 380.115 48.2987 382.333 47.616C384.552 46.848 386.301 46.464 387.581 46.464C388.947 46.464 389.928 46.7627 390.525 47.36C392.659 50.176 393.725 51.8827 393.725 52.48C393.725 53.0774 393.427 53.5894 392.829 54.016C392.317 54.3574 390.568 55.552 387.581 57.6C384.68 59.648 381.821 61.7387 379.005 63.872C376.189 66.0054 373.544 68.3947 371.069 71.04C368.595 73.6854 367.357 75.8187 367.357 77.44C367.357 77.696 367.571 77.824 367.997 77.824C372.605 77.824 388.136 68.48 414.589 49.792C415.187 49.792 415.485 50.3467 415.485 51.456C415.485 52.48 412.115 56.1494 405.373 62.464C398.632 68.6934 390.995 74.8374 382.461 80.896C374.013 86.8694 367.869 89.856 364.029 89.856C358.056 89.856 355.069 86.8694 355.069 80.896C355.069 77.6534 356.136 74.5387 358.269 71.552C360.488 68.48 365.096 64.384 372.093 59.264C370.643 59.264 368.68 58.9227 366.205 58.24C363.731 57.472 362.152 56.576 361.469 55.552C359.251 57.5147 355.411 60.8 349.949 65.408C348.669 66.3467 347.005 66.816 344.957 66.816C342.909 66.816 341.885 66.5174 341.885 65.92C341.885 65.2374 342.568 64.3414 343.933 63.232Z"/>
+            <path d="M331.787 48.5119C329.568 48.5119 325.814 50.8159 320.523 55.4239C315.232 59.9466 312.587 62.7199 312.587 63.7439C312.587 63.9146 312.715 63.9999 312.971 63.9999C314.848 63.9999 318.56 61.9092 324.107 57.7279C329.739 53.5466 332.555 50.6879 332.555 49.1519C332.555 48.7252 332.299 48.5119 331.787 48.5119ZM304.523 89.4719C297.952 89.4719 294.667 85.4612 294.667 77.4399C294.667 72.4052 296.843 67.0719 301.195 61.4399C305.632 55.7226 310.838 51.0719 316.811 47.4879C322.784 43.8186 328.075 41.9839 332.683 41.9839C334.731 41.9839 336.608 42.7946 338.315 44.4159C340.107 46.0372 341.003 47.6159 341.003 49.1519C341.003 51.9679 338.998 55.1679 334.987 58.7519C330.976 62.2506 326.752 65.1092 322.315 67.3279C317.963 69.4612 315.062 70.5279 313.611 70.5279C312.246 70.5279 311.222 69.8879 310.539 68.6079C310.198 68.3519 309.728 68.2239 309.131 68.2239C308.534 68.2239 307.552 69.3759 306.187 71.6799C304.822 73.8986 304.139 75.7332 304.139 77.1839C304.139 78.5492 304.651 79.4026 305.675 79.7439C312.16 79.7439 319.2 77.8666 326.795 74.1119C334.39 70.2719 344.886 63.5732 358.283 54.0159C359.222 53.3332 360.63 52.3092 362.507 50.9439C364.47 49.5786 365.622 48.7679 365.963 48.5119C366.731 49.1092 367.115 49.8346 367.115 50.6879C367.115 51.5412 366.731 52.3092 365.963 52.9919C361.696 57.2586 356.15 62.0372 349.323 67.3279C342.582 72.6186 334.816 77.6532 326.027 82.4319C317.238 87.1252 310.07 89.4719 304.523 89.4719Z"/>
+            <path d="M306.522 0C310.959 0 313.178 1.19467 313.178 3.584C313.178 7.08267 309.807 12.3733 303.066 19.456C296.41 26.5387 289.711 32.7253 282.97 38.016L272.986 46.08C272.474 46.6773 272.218 47.1467 272.218 47.488C272.218 47.8293 272.431 48 272.858 48C279.599 43.648 285.658 41.3867 291.034 41.216C292.058 41.216 292.997 41.5147 293.85 42.112C296.751 44.5013 298.202 47.2747 298.202 50.432C298.202 53.5893 294.959 58.9227 288.474 66.432C291.205 65.7493 294.917 64 299.61 61.184C304.389 58.2827 308.442 55.552 311.77 52.992L316.762 49.152C317.53 49.7493 317.914 50.4747 317.914 51.328C317.914 52.1813 317.53 52.9493 316.762 53.632C302.682 66.688 292.015 73.216 284.762 73.216C284.25 73.216 283.482 73.1307 282.458 72.96L282.714 72.576C277.679 77.5253 272.645 81.664 267.61 84.992C262.575 88.2347 258.437 89.856 255.194 89.856C247.173 89.856 243.162 87.1253 243.162 81.664C243.162 78.9333 244.058 75.7333 245.85 72.064C247.557 68.3093 249.647 64.768 252.122 61.44C254.597 58.0267 257.071 54.8267 259.546 51.84C262.106 48.8533 264.239 46.464 265.946 44.672C267.738 42.88 268.634 42.0267 268.634 42.112C274.693 35.1147 279.941 28.672 284.378 22.784C288.901 16.8107 291.887 12.5867 293.338 10.112C294.789 7.552 296.239 5.376 297.69 3.584C299.141 1.792 300.335 0.768003 301.274 0.512001C302.298 0.170667 304.047 0 306.522 0ZM255.066 82.688C258.565 82.688 263.087 80.2133 268.634 75.264C274.266 70.3147 279.045 65.152 282.97 59.776C286.981 54.4 288.986 50.9013 288.986 49.28C288.986 49.024 288.858 48.896 288.602 48.896C284.165 48.896 279.13 51.2853 273.498 56.064C267.866 60.8427 263.215 65.8347 259.546 71.04C255.962 76.2453 254.17 79.8293 254.17 81.792C254.17 82.3893 254.469 82.688 255.066 82.688Z"/>
+            <path d="M222.884 79.2319C222.884 79.9999 223.353 80.3839 224.292 80.3839C225.316 80.3839 227.108 79.7866 229.668 78.5919C232.313 77.3973 235.428 75.5626 239.012 73.0879C242.681 70.6133 247.503 67.1146 253.476 62.5919C259.535 57.9839 264.825 54.1013 269.348 50.9439C270.116 51.5413 270.5 52.2666 270.5 53.1199C270.5 53.9733 270.116 54.7413 269.348 55.4239C266.617 58.0693 263.161 61.3973 258.98 65.4079C254.799 69.3333 248.399 74.6239 239.78 81.2799C231.247 87.9359 225.273 91.264 221.86 91.264C215.289 91.264 212.004 87.7653 212.004 80.7679C212.004 78.1226 213.028 75.3493 215.076 72.4479L220.58 64.8959C221.092 64.1279 221.348 63.7013 221.348 63.6159C221.348 63.4453 221.092 63.5733 220.58 64C205.732 76.3733 196.26 83.6266 192.164 85.7599C191.481 86.1866 190.628 86.3999 189.604 86.3999C186.788 86.3999 185.38 85.1199 185.38 82.5599C185.38 81.7066 185.593 80.9386 186.02 80.256C190.969 73.088 194.767 68.2666 197.412 65.792L199.588 63.6159C199.759 63.4453 199.844 63.2746 199.844 63.1039C199.844 62.9333 199.759 62.8479 199.588 62.8479C199.417 62.8479 199.161 63.0186 198.82 63.36L185.124 74.1119C177.188 80.3413 172.836 83.6693 172.068 84.096C171.385 84.4373 170.745 84.6079 170.148 84.6079C169.551 84.6079 168.612 84.2666 167.332 83.584C166.052 82.816 165.412 81.9626 165.412 81.0239C165.412 80.7679 165.54 80.4266 165.796 80C174.159 70.7839 180.26 63.1893 184.1 57.2159C185.721 54.6559 187.129 52.3946 188.324 50.4319C189.604 48.3839 190.585 46.9333 191.268 46.0799C192.036 45.2266 192.847 44.7999 193.7 44.7999C194.553 44.7999 195.492 45.3119 196.516 46.3359C197.625 47.2746 198.18 48.2559 198.18 49.2799C198.18 50.3039 197.839 51.3706 197.156 52.4799C194.255 57.6853 191.993 61.0559 190.372 62.5919C190.116 62.8479 189.988 63.104 189.988 63.36C189.988 63.5306 190.073 63.6159 190.244 63.6159L190.628 63.4879L207.78 51.5839C212.132 48.5973 214.735 47.1039 215.588 47.1039C216.441 47.1039 217.337 47.4026 218.276 47.9999C219.3 48.5119 219.812 49.1093 219.812 49.7919C219.812 50.4746 219.599 51.1573 219.172 51.8399L210.852 63.2319C209.743 64.5973 209.188 65.3653 209.188 65.5359C209.188 65.7066 209.231 65.792 209.316 65.792L209.956 65.4079C220.623 58.1546 227.833 53.1199 231.588 50.3039C235.428 47.4879 237.732 45.6959 238.5 44.9279C239.695 44.0746 240.676 43.6479 241.444 43.6479C242.297 43.6479 242.852 43.7333 243.108 43.9039L245.924 46.0799C246.777 46.5066 247.204 47.0613 247.204 47.7439C247.204 48.4266 247.033 48.9813 246.692 49.4079C241.657 54.8693 237.604 59.2213 234.532 62.4639C231.545 65.7066 229.369 68.0959 228.004 69.6319C225.785 72.2773 224.42 74.4106 223.908 76.0319C223.225 77.2266 222.884 78.2933 222.884 79.2319Z"/>
+            <path d="M148.754 75.7758C161.469 68.9491 175.464 59.8611 190.738 48.5118C191.506 49.1091 191.89 49.8345 191.89 50.6878C191.89 51.5411 191.464 52.3518 190.61 53.1198C189.757 53.8878 188.52 54.9971 186.898 56.4478C185.362 57.8985 182.376 60.5011 177.938 64.2558C173.501 68.0105 169.362 71.4238 165.522 74.4958C155.453 82.6025 148.029 87.3811 143.25 88.8318C141.714 89.2585 140.05 89.4718 138.258 89.4718C135.357 89.4718 133.906 87.2105 133.906 82.6878C133.906 81.7491 134.29 80.3411 135.058 78.4638C135.912 76.5865 136.381 75.5198 136.466 75.2638C136.637 74.9225 136.765 74.6665 136.85 74.4958C136.936 74.3251 137.021 74.1971 137.106 74.1118C137.192 73.9411 137.234 73.7705 137.234 73.5998C137.234 73.4291 136.978 73.3438 136.466 73.3438C136.04 73.3438 134.632 74.4958 132.242 76.7998C129.853 79.0185 127.848 80.8105 126.226 82.1758C124.69 83.5411 122.898 84.8211 120.85 86.0158C118.888 87.2105 117.266 87.8078 115.986 87.8078C112.573 87.8078 110.866 86.2291 110.866 83.0718C110.866 81.1945 111.506 78.8905 112.786 76.1598C115.773 69.8451 120.253 63.5305 126.226 57.2158C132.2 50.9011 136.466 47.7011 139.026 47.6158C139.965 47.6158 140.818 47.9571 141.586 48.6398C142.354 49.3225 142.738 50.0905 142.738 50.9438C142.738 51.7971 141.885 53.0771 140.178 54.7838C138.472 56.4905 136.296 58.7091 133.65 61.4398C131.09 64.0851 129.256 66.3038 128.146 68.0958C127.122 69.8878 126.61 71.0825 126.61 71.6798C126.61 72.2771 126.952 72.5758 127.634 72.5758C128.317 72.5758 129.554 72.0211 131.346 70.9118C136.21 67.5838 141.757 63.4878 147.986 58.6238C154.301 53.7598 158.354 50.2185 160.146 47.9998C160.573 46.4638 161.853 45.6958 163.986 45.6958C168.082 45.6958 170.13 46.4211 170.13 47.8718C170.13 48.4691 168.125 50.6878 164.114 54.5278C152.082 66.0478 146.066 73.1731 146.066 75.9038C146.066 76.3305 146.237 76.5438 146.578 76.5438C147.005 76.5438 147.73 76.2878 148.754 75.7758Z"/>
+            <path d="M110.08 4.35178C112.555 2.30378 115.371 1.27979 118.528 1.27979C121.685 1.27979 123.264 1.91978 123.264 3.19978C123.264 3.71178 122.88 4.47978 122.112 5.50378C121.429 7.03978 118.229 12.8425 112.512 22.9118C97.5787 49.0238 90.112 66.4318 90.112 75.1358C90.112 75.8185 90.2827 76.1598 90.624 76.1598C91.136 76.1598 91.9893 75.3065 93.184 73.5998C96.6827 67.5411 101.163 60.5865 106.624 52.7358C112.085 44.8851 117.248 37.9731 122.112 31.9998C126.976 26.0264 132.48 20.4371 138.624 15.2318C144.768 10.0264 150.357 6.78378 155.392 5.50378C163.755 4.13845 169.173 3.45578 171.648 3.45578C171.904 3.54111 172.032 3.75445 172.032 4.09578C172.032 4.35178 171.563 4.73578 170.624 5.24778C160.981 10.6238 148.992 20.8638 134.656 35.9678C120.405 50.9865 107.52 66.4318 96 82.3038C92.928 87.5091 90.5387 90.7518 88.832 92.0318C87.1253 93.3118 85.0773 93.9518 82.688 93.9518C78.2507 93.9518 76.032 89.2584 76.032 79.8718C76.032 75.7758 76.8427 71.5945 78.464 67.3278C84.4373 51.3705 90.0267 39.9358 95.232 33.0238C98.1333 28.7571 99.584 26.4104 99.584 25.9838C99.584 25.7278 99.072 26.2398 98.048 27.5198C76.8 54.2291 61.7813 71.7225 52.992 79.9998C46.9333 86.3145 40.064 92.7998 32.384 99.4558C24.704 106.112 18.56 110.677 13.952 113.152C12.5013 114.346 10.9653 114.944 9.344 114.944C7.72267 114.944 5.76 114.261 3.456 112.896C1.152 111.53 0 109.952 0 108.16C0 107.221 0.512 106.368 1.536 105.6L22.528 87.9358C23.808 86.8265 24.6187 86.2718 24.96 86.2718C25.216 86.2718 25.344 86.4424 25.344 86.7838C25.344 87.0398 25.216 87.4238 24.96 87.9358C24.704 88.4478 24.32 89.0025 23.808 89.5998C23.2107 90.1971 22.6133 90.7518 22.016 91.2638L19.84 93.5678C17.1947 96.2131 15.872 97.6638 15.872 97.9198C15.872 98.2611 15.9573 98.4318 16.128 98.4318C16.2987 98.4318 16.7253 98.1758 17.408 97.6638C25.6 92.0318 37.4187 81.4505 52.864 65.9198C68.3093 50.3038 81.7067 36.1385 93.056 23.4238L110.08 4.35178Z"/>
+          </clipPath>
+        </defs>
+        <g>
+          <g clip-path="url(#numbers-letters)">
+            <path class="cl" pathLength="1"
+                  d="M454.422 55.9301C450.422 58.2601 438.522 66.1301 422.922 78.9301C407.322 91.7301 397.422 84.6001 394.422 79.4301C396.252 81.6001 401.322 86.0301 406.922 86.4301C413.922 86.9301 418.422 75.4301 424.922 61.9301C430.122 51.1301 424.422 47.4301 420.922 46.9301C410.752 55.6001 389.422 73.4301 385.422 75.4301C380.422 77.9301 357.922 95.4301 357.922 83.9301C358.322 75.5301 375.092 61.7601 383.422 55.9301C383.252 56.4301 381.122 57.6301 373.922 58.4301C364.922 59.4301 353.922 47.4301 353.922 49.4301C353.922 51.0301 359.252 53.4301 361.922 54.4301C342.752 68.4301 303.222 94.6301 298.422 87.4301C292.422 78.4301 300.422 71.9301 312.422 57.4301C324.422 42.9301 336.422 50.4301 331.922 55.9301C327.422 61.4301 309.922 69.9301 308.922 69.9301C307.922 69.9301 307.922 62.9301 302.422 66.4301C298.022 69.2301 286.942 71.1101 281.422 73.2601C281.422 73.2601 276.422 74.7601 273.422 77.2601C270.422 79.7601 258.282 89.9301 249.922 89.9301C236.922 89.9301 248.812 71.0501 257.422 61.2601C268.422 48.7601 284.422 34.4301 299.922 11.9301C310.252 -3.06992 314.422 5.43008 311.422 10.9301C306.092 20.6901 282.422 42.4301 260.922 61.2601C243.962 74.8401 229.212 86.2201 226.422 87.9301C219.922 91.9301 208.922 89.9301 215.922 79.4301C221.742 70.6901 231.922 56.9301 237.922 51.9301C234.092 54.4301 224.122 60.9301 214.922 66.9301C205.722 72.9301 193.422 81.7601 188.422 85.4301C189.422 83.2601 192.522 77.5301 196.922 71.9301C201.322 66.3301 208.752 57.9301 211.922 54.4301C208.252 56.7601 199.222 62.5301 192.422 66.9301C185.622 71.3301 173.252 80.4301 167.922 84.4301C169.092 82.9301 172.822 78.1301 178.422 70.9301C184.022 63.7301 189.422 55.2601 191.422 51.9301C174.252 66.2601 139.522 92.8301 137.922 84.4301C136.322 76.0301 153.422 61.2601 162.422 51.9301C146.922 63.4301 118.422 85.4301 112.922 85.4301C107.422 85.4301 127.422 60.9301 135.922 54.4301C202.752 -13.9699 153.422 12.4301 153.422 12.4301C147.592 16.2601 132.422 28.1301 118.422 44.9301C100.922 65.9301 92.422 87.4301 81.422 87.4301C77.392 87.4301 78.422 73.9301 91.422 48.4301C96.402 38.6601 111.922 10.9301 110.922 10.9301C109.922 10.9301 83.422 41.4301 58.922 67.9301C34.422 94.4301 3.42204 115.93 4.92204 109.93C6.12204 105.13 16.422 95.2601 21.422 90.9301"/>
+          </g>
+        </g>
+      </svg>
+      <p class="numtell__title-sub">Tell the Story</p>
+    </div>
+    <div class="numtell__stats">
+      <div class="numtell__stat">
+        <span class="numtell__value">81%</span>
+        <span class="numtell__label">Repeat Client Rate</span>
       </div>
-      <div class="service-card">
-        <span class="service-card__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.5" /><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7M18.4 18.4l-1.7-1.7M7.3 7.3L5.6 5.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-        </span>
-        <h3 class="service-card__title">Custom Software Development</h3>
-        <p class="service-card__desc">Build tailored solutions to automate tasks and streamline your business.</p>
+      <div class="numtell__stat">
+        <span class="numtell__value">280+</span>
+        <span class="numtell__label">Projects Delivered</span>
       </div>
-      <div class="service-card">
-        <span class="service-card__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M4 20l4.2-1.2L19 8a2 2 0 0 0 0-2.8l-.2-.2a2 2 0 0 0-2.8 0L5.2 15.8 4 20z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /><path d="M13 6.5l3.5 3.5" stroke="currentColor" stroke-width="1.5" /></svg>
-        </span>
-        <h3 class="service-card__title">UX/UI Design</h3>
-        <p class="service-card__desc">Create intuitive and engaging interfaces that delight users and boost conversions.</p>
+      <div class="numtell__stat">
+        <span class="numtell__value">3</span>
+        <span class="numtell__label">Markets Served</span>
       </div>
-      <div class="service-card">
-        <span class="service-card__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.5" /><line x1="15.3" y1="15.3" x2="21" y2="21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-        </span>
-        <h3 class="service-card__title">UX Research &amp; Audit</h3>
-        <p class="service-card__desc">Uncover user needs and optimize your digital experience for maximum impact.</p>
+    </div>
+  </div>
+  </section>
+  </div>
+  <!-- end numbers stage; .story-wrap continues below -->
+
+  <section class="wwd2-pin" id="wwd2">
+    <div class="wwd2-sticky">
+      <div class="wwd2-title-group">
+        <div class="wwd2-row-wrap">
+          <div class="connect__row wwd2-row">
+            <h2 class="connect__heading"><span class="connect__heading-mask">What We Do</span></h2>
+            <span class="connect__line" aria-hidden="true"></span>
+          </div>
+        </div>
+        <div class="wwd2-tag-wrap">
+          <p class="connect__tag">to Connect.</p>
+        </div>
       </div>
-      <div class="service-card">
-        <span class="service-card__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M3 21h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><rect x="5" y="14" width="3" height="7" stroke="currentColor" stroke-width="1.5" /><rect x="11" y="10" width="3" height="11" stroke="currentColor" stroke-width="1.5" /><rect x="17" y="5" width="3" height="16" stroke="currentColor" stroke-width="1.5" /></svg>
-        </span>
-        <h3 class="service-card__title">Technical SEO Optimisation</h3>
-        <p class="service-card__desc">Improve your website's search ranking and attract organic traffic.</p>
+      <div class="wwd2-cards-viewport">
+        <div class="wwd2-track" id="wwd2-track">
+        <article class="wwd2-card">
+          <div class="wwd2-card__text">
+            <div class="wwd2-card__body">
+              <h3 class="wwd2-card__title">UX/UI Design</h3>
+              <p class="wwd2-card__desc">Create intuitive and engaging interfaces that delight users and boost conversions.</p>
+            </div>
+            <div class="wwd2-card__bar"></div>
+          </div>
+          <div class="wwd2-card__media" aria-hidden="true"><img src="img/feature-1.png" alt="" loading="lazy"></div>
+        </article>
+        <article class="wwd2-card">
+          <div class="wwd2-card__text">
+            <div class="wwd2-card__body">
+              <h3 class="wwd2-card__title">Web &amp; Mobile Development</h3>
+              <p class="wwd2-card__desc">Craft beautiful, user-friendly apps and websites that drive results.</p>
+            </div>
+            <div class="wwd2-card__bar"></div>
+          </div>
+          <div class="wwd2-card__media" aria-hidden="true"><img src="img/feature-2.png" alt="" loading="lazy"></div>
+        </article>
+        <article class="wwd2-card">
+          <div class="wwd2-card__text">
+            <div class="wwd2-card__body">
+              <h3 class="wwd2-card__title">Custom Software Development</h3>
+              <p class="wwd2-card__desc">Build tailored solutions to automate tasks and streamline your business.</p>
+            </div>
+            <div class="wwd2-card__bar"></div>
+          </div>
+          <div class="wwd2-card__media" aria-hidden="true"><img src="img/feature-3.png" alt="" loading="lazy"></div>
+        </article>
+        <article class="wwd2-card">
+          <div class="wwd2-card__text">
+            <div class="wwd2-card__body">
+              <h3 class="wwd2-card__title">UX Research &amp; Audit</h3>
+              <p class="wwd2-card__desc">Uncover user needs and optimize your digital experience for maximum impact.</p>
+            </div>
+            <div class="wwd2-card__bar"></div>
+          </div>
+          <div class="wwd2-card__media" aria-hidden="true"><img src="img/feature-4.png" alt="" loading="lazy"></div>
+        </article>
+        <article class="wwd2-card">
+          <div class="wwd2-card__text">
+            <div class="wwd2-card__body">
+              <h3 class="wwd2-card__title">Technical SEO Optimisation</h3>
+              <p class="wwd2-card__desc">Improve your website's search ranking and attract organic traffic.</p>
+            </div>
+            <div class="wwd2-card__bar"></div>
+          </div>
+          <div class="wwd2-card__media" aria-hidden="true"><img src="img/feature-5.png" alt="" loading="lazy"></div>
+        </article>
+        <article class="wwd2-card">
+          <div class="wwd2-card__text">
+            <div class="wwd2-card__body">
+              <h3 class="wwd2-card__title">Content Management</h3>
+              <p class="wwd2-card__desc">Empower your team to easily create, edit, and publish engaging content.</p>
+            </div>
+            <div class="wwd2-card__bar"></div>
+          </div>
+          <div class="wwd2-card__media" aria-hidden="true"><img src="img/feature-6.png" alt="" loading="lazy"></div>
+        </article>
       </div>
-      <div class="service-card">
-        <span class="service-card__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="1.5" stroke="currentColor" stroke-width="1.5" /><line x1="8" y1="8" x2="16" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><line x1="8" y1="16" x2="13" y2="16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
-        </span>
-        <h3 class="service-card__title">Content Management</h3>
-        <p class="service-card__desc">Empower your team to easily create, edit, and publish engaging content.</p>
+    </div>
+    </div>
+  </section>
+</div>
+<!-- ============ end Numbers Tell the Story → What We Do ============ -->
+
+<!-- ============================================================================
+     Expertise — hover-reveal version from 素材/新作品 section-raexpexpertise.
+     This won the side-by-side comparison against the original Expertise
+     section, which has been removed. Structure/classes/animation timings
+     left untouched per the handoff doc — only the placeholder copy, hrefs,
+     and video sources were filled in with the site's real Expertise content.
+     ============================================================================ -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,300..900;1,300..900&display=swap');
+
+.raexp{
+  --raexp-paper:#f8f8f8;
+  --raexp-ink:#262829;
+  --raexp-dark:#05070c;
+  --raexp-hair:#000;
+  --raexp-cap:#e5eaf3;
+  --raexp-blue:#2479cb;
+  --raexp-expo:cubic-bezier(.19,1,.22,1);
+  --raexp-quint:cubic-bezier(.23,1,.32,1);
+  --raexp-quart:cubic-bezier(.165,.84,.44,1);
+
+  /* #story (Numbers/What We Do's shared canvas wrapper, right before this
+     section) is `position: relative` — CSS always paints *positioned*
+     boxes above *static* siblings regardless of DOM order, so without this,
+     the shared canvas paints on top of this section's own content whenever
+     its sticky positioning renders past #story's real end (a known quirk
+     in this Chrome build, see #story's own comment in main.js/styles.css),
+     hiding this heading under it for as long as that overshoot lasts. This
+     alone fixes it structurally — JS can only narrow the window, since the
+     wrong-paint-order problem exists independent of any timing. */
+  position:relative;
+  display:flex;flex-direction:column;align-items:center;
+  background:var(--raexp-paper);
+  color:var(--raexp-ink);
+  font-family:"General Sans",-apple-system,"Helvetica Neue",Arial,"Noto Sans TC",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.raexp *{box-sizing:border-box;margin:0;padding:0}
+.raexp a{text-decoration:none;color:inherit}
+
+.raexp-head{
+  width:100%;
+  padding:160px 64px 100px;
+  display:flex;flex-direction:row;align-items:flex-end;justify-content:space-between;
+  gap:40px;flex-wrap:wrap;
+}
+.raexp-lede{
+  max-width:660px; /* was 400px — wide enough that each <br>-separated sentence reads as ~1 line instead of wrapping 3+ times */
+  font-size:20px;font-weight:500;line-height:26.88px;
+  color:var(--raexp-ink);
+}
+/* Kinetic block-sweep reveal on the lede (shared .kl/.kl__text/.kl__block
+   component, see styles.css) — same effect as Numbers Tell the Story's
+   stat labels, just this section's own accent color instead of the
+   component's default blue. Scoped trigger class (.is-text-revealing, not
+   the shared .is-revealing) for the same reason WWD's cards use their own
+   scoped class: `.is-revealing .kl__block` is a bare descendant selector
+   that would otherwise fire on every .kl anywhere inside whatever ancestor
+   already carries .is-revealing. */
+.raexp-lede .kl__block{background:#ffb349}
+.raexp-lede.is-text-revealing .kl__block{animation:kinetic-sweep-left var(--kdur,.42s) cubic-bezier(.65,0,.35,1) both;animation-delay:var(--kd,0s)}
+.raexp-lede.is-text-revealing .kl__text{animation:kinetic-text-in var(--kdur,.42s) steps(1,end) both;animation-delay:var(--kd,0s)}
+
+.raexp-title{
+  font-size:clamp(56px,9vw,128px);
+  font-weight:700;letter-spacing:-.66px;line-height:1;
+  color:var(--raexp-ink);white-space:nowrap;
+}
+/* Split-char rise-from-below (same connect-char-in keyframe the WWD "Ready
+   to Connect" tag uses, see styles.css) — split at runtime by the script
+   below. Default/no-JS state renders the plain heading in place; .is-armed
+   only ever gets added right before observing, so a JS failure or
+   prefers-reduced-motion just leaves it fully visible instead of stuck
+   hidden. */
+.raexp-char{display:inline-block}
+.raexp-title.is-armed .raexp-char{opacity:0;transform:translateY(120%)}
+.raexp-char.is-in{animation:connect-char-in .5s cubic-bezier(.22,1,.36,1) both;animation-delay:var(--char-delay,0s)}
+
+.raexp-row{display:flex;align-items:stretch;width:100%}
+.raexp-row > * + *{margin-left:-1px}
+
+@media (min-width:1025px){
+  .raexp-row > *:first-child .raexp-card{border-left-color:transparent}
+  .raexp-row > *:last-child{border-right-color:transparent}
+}
+
+.raexp-item{
+  display:flex;flex-direction:column;
+  flex:1 1 0;min-width:0;
+  /* No aspect-ratio here — .raexp-video (the only sibling with a real
+     border on its own box, not a nested child) is the one aspect-ratio
+     reliably sizes at this exact width in every browser, so it drives the
+     row's height and align-items:stretch above makes the three cards
+     match it exactly, instead of each computing its own height and
+     drifting a couple px apart. */
+}
+
+.raexp-card{
+  position:relative;flex:1;
+  display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
+  padding:0 20px;
+  background:var(--raexp-paper);
+  border:1px solid var(--raexp-hair);
+  overflow:hidden;
+  cursor:pointer;
+}
+
+.raexp-card__bg{
+  position:absolute;inset:0;margin:auto;
+  width:0;height:100%;
+  background:var(--raexp-dark);
+  z-index:0;
+  transition:width .3s var(--raexp-expo);
+}
+.raexp-item.is-hover .raexp-card__bg{
+  width:100%;
+  transition:width .5s var(--raexp-expo);
+}
+
+.raexp-card__inner{position:relative;z-index:1;width:100%;display:flex;flex-direction:column}
+
+.raexp-card__head{display:flex;gap:10px;align-items:center;width:100%}
+/* Hovering the item always pins the arrow to the title's top line — at the
+   wide default size .raexp-card__head still centers it against the full
+   (2-line) title at rest, but centered felt disconnected once the row is
+   the focus of attention. */
+.raexp-item.is-hover .raexp-card__head{align-items:flex-start}
+/* Medium desktop band — same 1025-1300px zone .raexp-card__title's own
+   clamp() comment already calls out as tight (4 columns, ~250-320px each).
+   At rest (not hovered), .raexp-card__head centers the arrow against the
+   full 2-line title everywhere above this band; here the gap between title
+   and arrow reads too tight for that, so pin the arrow to the title's top
+   line even without hovering. Placed after the base rule above (same
+   specificity either way — the media query alone doesn't win a cascade
+   tie, only source order does). */
+@media (min-width:1025px) and (max-width:1300px){
+  .raexp-card__head{align-items:flex-start}
+}
+.raexp-card__title{
+  flex:1;min-width:0;
+  /* Fixed 40px overflowed (word like "Engagement" wider than the column)
+     right around 1025-1300px, where each of the 4 desktop columns is only
+     ~250-320px — this scales it down at those widths while keeping the
+     original 40px once there's room again. */
+  font-size:clamp(24px, 3vw, 40px);font-weight:600;line-height:1.1;
+  color:var(--raexp-ink);
+  transition:color .25s linear;
+}
+.raexp-card__title span{display:block}
+.raexp-item.is-hover .raexp-card__title{color:#fff}
+
+.raexp-arrow{position:relative;flex:none;width:25px;height:25px;overflow:hidden;border-radius:50%}
+.raexp-arrow .raexp-badge{position:absolute;inset:0;width:25px;height:25px}
+.raexp-arrow .raexp-badge svg{display:block;width:100%;height:100%}
+.raexp-badge--h{transform:translate(0,0);        transition:transform .5s var(--raexp-quart)}
+.raexp-badge--d{transform:translate(-28px,28px)}
+.raexp-item.is-hover .raexp-badge--h{transform:translate(28px,0)}
+.raexp-item.is-hover .raexp-badge--d{transform:translate(0,0);transition:transform .4s var(--raexp-quart)}
+
+.raexp-reveal{
+  display:grid;grid-template-rows:0fr;
+  transition:grid-template-rows .5s var(--raexp-expo);
+}
+.raexp-reveal__inner{
+  overflow:hidden;
+  display:flex;flex-direction:column;gap:12px;
+  padding-top:16px;
+  opacity:0;transform:translateY(24px);
+  transition:opacity 0s linear, transform .5s var(--raexp-quart);
+}
+.raexp-item.is-hover .raexp-reveal{grid-template-rows:1fr}
+.raexp-item.is-hover .raexp-reveal__inner{
+  opacity:1;transform:translateY(0);
+  transition:opacity .3s ease .15s, transform .75s var(--raexp-quint) .15s;
+}
+
+.raexp-tags{display:flex;gap:4px;flex-wrap:wrap}
+.raexp-tag{
+  border:1px solid var(--raexp-cap);border-radius:999px;
+  padding:4px 8px;
+  font-size:12px;font-weight:400;line-height:1;
+  color:var(--raexp-cap);white-space:nowrap;
+}
+.raexp-body{font-size:14px;font-weight:400;line-height:22.32px;color:var(--raexp-cap)}
+
+.raexp-video{
+  position:relative;
+  flex:1 1 0;min-width:0;
+  aspect-ratio:378 / 567;
+  border:1px solid var(--raexp-hair);
+  background:var(--raexp-paper);
+  overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+}
+/* Default "no video playing" placeholder in .raexp-video — was a plain
+   circle with one orbiting dot (.raexp-illu), replaced with the
+   circular-text component (素材/circulartext/circulartext.md): rotating
+   text around a ring, driven by the Web Animations API so hover can change
+   its playback rate smoothly instead of jumping position. Ported as-is —
+   only --size/--font-size and the .raexp-ink color are scoped to match
+   this section; see the script right after raexp's own hover-video script
+   below for the JS half. */
+.circular-text {
+  --size: 190px;
+  --font-size: 16px;
+
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  margin: 0 auto;
+  border-radius: 50%;
+  color: var(--raexp-ink);
+  font-family: 'General Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+
+  /* rotate is driven by JS (Web Animations API); scale is plain CSS — the
+     two are independent transform properties and don't conflict. */
+  scale: 1;
+  transform-origin: 50% 50%;
+  transition: scale .5s cubic-bezier(0, 0, 0, 1);
+  will-change: rotate, scale;
+}
+
+.circular-text span {
+  position: absolute;
+  inset: 0;
+  display: inline-block;
+  font-size: var(--font-size);
+  line-height: 1;
+  transition: all .5s cubic-bezier(0, 0, 0, 1);
+}
+
+.circular-text.is-bonkers { scale: .8; }
+
+@media (prefers-reduced-motion: reduce) {
+  .circular-text { transition: none; }
+}
+.raexp-vwrap{
+  position:absolute;inset:0;margin:auto;
+  width:0;height:100%;
+  overflow:hidden;background:var(--raexp-dark);
+  display:flex;align-items:center;justify-content:center;
+  transition:width .5s var(--raexp-expo);
+}
+.raexp-vwrap.is-open{width:100%}
+.raexp-vwrap video{
+  /* The min-width/height:100% + width/height:auto trick only enforces a
+     lower bound — since these source videos are already larger than the
+     box (740x1110 into a ~360x541 box), that bound was already satisfied
+     and the video rendered at full native size, 2x+ oversized, with the
+     overflow clipped — a zoomed-in crop, not a fit. Plain 100%/100% lets
+     object-fit:cover actually do the scaling (matches .raexp-mvideo video
+     and the main site's own .expertise__video, both already working). */
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  object-fit:cover;
+}
+
+.raexp-mvideo{display:none}
+
+@media (max-width:1024px){
+  .raexp-head{padding:96px 24px 48px;flex-direction:column;align-items:flex-start;gap:20px}
+  .raexp-lede{font-size:16px;line-height:1.45;max-width:100%}
+  .raexp-title{white-space:normal}
+
+  .raexp-row{flex-direction:column}
+  .raexp-row > * + *{margin-left:0;margin-top:-1px}
+  .raexp-item{flex:none;width:100%;aspect-ratio:auto}
+  .raexp-video{display:none}
+
+  .raexp-mvideo{
+    display:block;width:100%;aspect-ratio:16/9;overflow:hidden;
+    border:1px solid var(--raexp-hair);border-bottom:none;background:var(--raexp-dark);
+  }
+  .raexp-mvideo video{width:100%;height:100%;object-fit:cover;display:block}
+  .raexp-card{min-height:340px}
+}
+</style>
+
+<section class="raexp" id="expertise-alt" aria-label="Expertise (comparison version)">
+  <header class="raexp-head">
+    <h2 class="raexp-title">Expertise</h2>
+    <p class="raexp-lede">From bold ideas to refined digital experiences,<br>see how we turn business challenges into purposeful design.</p>
+  </header>
+
+  <div class="raexp-row">
+
+    <!-- ================= Card 1: Product Identity ================= -->
+    <a class="raexp-item" data-i="0" href="work.html">
+      <div class="raexp-mvideo">
+        <video muted loop playsinline preload="metadata" src="video/Vertical-blur.mp4"></video>
+      </div>
+      <div class="raexp-card">
+        <span class="raexp-card__bg"></span>
+        <div class="raexp-card__inner">
+          <div class="raexp-card__head">
+            <div class="raexp-card__title"><span>Product</span><span>Identity</span></div>
+            <span class="raexp-arrow">
+              <span class="raexp-badge raexp-badge--h"><svg viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="25" height="25" rx="12.5" fill="#2479CB"/><path d="M12.8154 17.3224L11.7143 16.3082L15.0121 13.2408H7V11.7592H15.0121L11.7143 8.69673L12.8154 7.67756L18 12.5L12.8154 17.3224Z" fill="white"/></svg></span>
+              <span class="raexp-badge raexp-badge--d"><svg viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="25" height="25" rx="12.5" fill="white"/><path d="M16.6121 16.1661L15.0156 16.1268L14.8738 11.321L9.20831 16.9865L8.01352 15.7917L13.679 10.1262L8.87725 9.98842L8.8339 8.38792L16.3891 8.61091L16.6121 16.1661Z" fill="#2479CB"/></svg></span>
+            </span>
+          </div>
+          <div class="raexp-reveal">
+            <div class="raexp-reveal__inner">
+              <div class="raexp-tags">
+                <span class="raexp-tag">Branding</span>
+                <span class="raexp-tag">Design System</span>
+                <span class="raexp-tag">Web/App Development</span>
+              </div>
+              <p class="raexp-body">Identity is more than a mark. We turn it into a living system, carried consistently from logo to interface, across web and app, so every touchpoint feels like the same promise kept.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+
+    <!-- ================= Card 2: Product Operations ================= -->
+    <a class="raexp-item" data-i="1" href="work.html">
+      <div class="raexp-mvideo">
+        <video muted loop playsinline preload="metadata" src="video/CMS-demo.mp4"></video>
+      </div>
+      <div class="raexp-card">
+        <span class="raexp-card__bg"></span>
+        <div class="raexp-card__inner">
+          <div class="raexp-card__head">
+            <div class="raexp-card__title"><span>Product</span><span>Operations</span></div>
+            <span class="raexp-arrow">
+              <span class="raexp-badge raexp-badge--h"><svg viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="25" height="25" rx="12.5" fill="#2479CB"/><path d="M12.8154 17.3224L11.7143 16.3082L15.0121 13.2408H7V11.7592H15.0121L11.7143 8.69673L12.8154 7.67756L18 12.5L12.8154 17.3224Z" fill="white"/></svg></span>
+              <span class="raexp-badge raexp-badge--d"><svg viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="25" height="25" rx="12.5" fill="white"/><path d="M16.6121 16.1661L15.0156 16.1268L14.8738 11.321L9.20831 16.9865L8.01352 15.7917L13.679 10.1262L8.87725 9.98842L8.8339 8.38792L16.3891 8.61091L16.6121 16.1661Z" fill="#2479CB"/></svg></span>
+            </span>
+          </div>
+          <div class="raexp-reveal">
+            <div class="raexp-reveal__inner">
+              <div class="raexp-tags">
+                <span class="raexp-tag">CMS</span>
+                <span class="raexp-tag">Platform Integrations</span>
+                <span class="raexp-tag">Admin Dashboard</span>
+                <span class="raexp-tag">Automation</span>
+                <span class="raexp-tag">Data Visualization</span>
+              </div>
+              <p class="raexp-body">A product is only as strong as what runs behind it. We build the CMS, integrations, and automation that keep teams moving, turning daily operations into a system that scales.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+
+    <!-- ================= Card 3: Global Engagement ================= -->
+    <a class="raexp-item" data-i="2" href="work.html">
+      <div class="raexp-mvideo">
+        <video muted loop playsinline preload="metadata" src="video/Game-blur.mp4"></video>
+      </div>
+      <div class="raexp-card">
+        <span class="raexp-card__bg"></span>
+        <div class="raexp-card__inner">
+          <div class="raexp-card__head">
+            <div class="raexp-card__title"><span>Global</span><span>Engagement</span></div>
+            <span class="raexp-arrow">
+              <span class="raexp-badge raexp-badge--h"><svg viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="25" height="25" rx="12.5" fill="#2479CB"/><path d="M12.8154 17.3224L11.7143 16.3082L15.0121 13.2408H7V11.7592H15.0121L11.7143 8.69673L12.8154 7.67756L18 12.5L12.8154 17.3224Z" fill="white"/></svg></span>
+              <span class="raexp-badge raexp-badge--d"><svg viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="25" height="25" rx="12.5" fill="white"/><path d="M16.6121 16.1661L15.0156 16.1268L14.8738 11.321L9.20831 16.9865L8.01352 15.7917L13.679 10.1262L8.87725 9.98842L8.8339 8.38792L16.3891 8.61091L16.6121 16.1661Z" fill="#2479CB"/></svg></span>
+            </span>
+          </div>
+          <div class="raexp-reveal">
+            <div class="raexp-reveal__inner">
+              <div class="raexp-tags">
+                <span class="raexp-tag">Gaming</span>
+                <span class="raexp-tag">Global Markets</span>
+                <span class="raexp-tag">Artificial Intelligence</span>
+                <span class="raexp-tag">Payment Integration</span>
+              </div>
+              <p class="raexp-body">Growth isn't just about reaching new markets, it's about keeping people there. We build the payment, localization, and experience layers that turn global reach into real engagement.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+
+    <!-- ============ Desktop video-swap panel; data-v pairs with card data-i ============ -->
+    <div class="raexp-video">
+      <div class="circular-text"
+           data-circular-text
+           data-text="*KEEP MOVING*KEEP MOVING"
+           data-spin-duration="20"
+           data-on-hover="pause"></div>
+      <div class="raexp-vwrap" data-v="0">
+        <video muted loop playsinline preload="metadata" src="video/Vertical-blur.mp4"></video>
+      </div>
+      <div class="raexp-vwrap" data-v="1">
+        <video muted loop playsinline preload="metadata" src="video/CMS-demo.mp4"></video>
+      </div>
+      <div class="raexp-vwrap" data-v="2">
+        <video muted loop playsinline preload="metadata" src="video/Game-blur.mp4"></video>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<script>
+(function(){
+  function init(root){
+    if(root.dataset.raexpReady) return;
+    root.dataset.raexpReady = '1';
+
+    var mq     = window.matchMedia('(max-width:1024px)');
+    var items  = Array.prototype.slice.call(root.querySelectorAll('.raexp-item'));
+    var vwraps = Array.prototype.slice.call(root.querySelectorAll('.raexp-video .raexp-vwrap'));
+
+    function vwrapFor(i){
+      return vwraps.filter(function(w){ return w.getAttribute('data-v') === String(i); })[0];
+    }
+
+    items.forEach(function(s){
+      var i = s.getAttribute('data-i');
+      s.addEventListener('mouseenter', function(){
+        if (mq.matches) return;
+        s.classList.add('is-hover');
+        var w = vwrapFor(i);
+        if (w){ w.classList.add('is-open'); var v = w.querySelector('video'); if(v) v.play().catch(function(){}); }
+      });
+      s.addEventListener('mouseleave', function(){
+        if (mq.matches) return;
+        s.classList.remove('is-hover');
+        var w = vwrapFor(i);
+        if (w){ w.classList.remove('is-open'); var v = w.querySelector('video'); if(v) v.pause(); }
+      });
+    });
+
+    function syncMobile(){
+      var m = mq.matches;
+      items.forEach(function(s){ s.classList.toggle('is-hover', m); });
+      root.querySelectorAll('.raexp-mvideo video').forEach(function(v){
+        if (m) v.play().catch(function(){}); else v.pause();
+      });
+    }
+    syncMobile();
+    (mq.addEventListener ? mq.addEventListener('change', syncMobile) : mq.addListener(syncMobile));
+  }
+
+  function boot(){ document.querySelectorAll('.raexp').forEach(init); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+
+<!-- Expertise heading split-char rise + lede kinetic-sweep reveal, both
+     triggered together once the heading scrolls 40% into view. Independent
+     of the hover script above and the circular-text script below. -->
+<script>
+(function(){
+  function splitChars(el){
+    var text = el.textContent;
+    el.setAttribute('aria-label', text);
+    el.textContent = '';
+    Array.prototype.forEach.call(text, function(ch, i){
+      var span = document.createElement('span');
+      span.className = 'raexp-char';
+      span.setAttribute('aria-hidden', 'true');
+      span.textContent = ch === ' ' ? ' ' : ch;
+      span.style.setProperty('--char-delay', (i * 0.03) + 's');
+      el.appendChild(span);
+    });
+  }
+
+  // Wraps each text run in .raexp-lede's own .kl/.kl__text/.kl__block unit,
+  // one per <br>-separated sentence, leaving the <br> itself untouched so
+  // the authored line break survives. wrapKineticText() in main.js can't be
+  // reused directly — it takes an element's whole textContent as one unit,
+  // which would collapse the <br> into nothing.
+  function wrapLedeKinetic(p){
+    var nodes = Array.prototype.slice.call(p.childNodes);
+    var label = nodes.map(function(n){
+      if (n.nodeType === 3) return n.textContent;
+      if (n.nodeName === 'BR') return ' ';
+      return '';
+    }).join('').replace(/\s+/g, ' ').trim();
+    p.setAttribute('aria-label', label);
+
+    var unitIndex = 0;
+    nodes.forEach(function(n){
+      if (n.nodeType !== 3 || !n.textContent.trim()) return;
+      var outer = document.createElement('span');
+      outer.className = 'kl';
+      outer.setAttribute('aria-hidden', 'true');
+      var inner = document.createElement('span');
+      inner.className = 'kl__text';
+      inner.textContent = n.textContent;
+      var block = document.createElement('span');
+      block.className = 'kl__block';
+      outer.appendChild(inner);
+      outer.appendChild(block);
+      outer.style.setProperty('--kd', (unitIndex * 0.15) + 's');
+      unitIndex += 1;
+      p.replaceChild(outer, n);
+    });
+  }
+
+  function boot(){
+    var title = document.querySelector('.raexp-title');
+    var lede = document.querySelector('.raexp-lede');
+    if (!title || !lede) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (typeof IntersectionObserver === 'undefined') return;
+
+    splitChars(title);
+    wrapLedeKinetic(lede);
+    title.classList.add('is-armed');
+
+    var observer = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (!entry.isIntersecting) return;
+        observer.unobserve(entry.target);
+        Array.prototype.forEach.call(title.querySelectorAll('.raexp-char'), function(span){
+          span.classList.add('is-in');
+        });
+        lede.classList.add('is-text-revealing');
+      });
+    }, { threshold: 0.4 });
+
+    observer.observe(title);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+
+<!-- Expertise: gap between the heading and the project row shrinks slightly
+     as the row scrolls into view — .raexp-head's own padding-bottom is the
+     gap (100px at rest, desktop only — mobile's stacked layout uses a
+     different padding value already, see @media(max-width:1024px) above,
+     so this stays out of its way entirely). GAP_START/GAP_END/RANGE below
+     are the exact parameters: 100px -> 60px over 400px of scroll, tracked
+     off .raexp-row's own entrance into the viewport from below. -->
+<script>
+(function(){
+  function boot(){
+    var head = document.querySelector('.raexp-head');
+    var row = document.querySelector('.raexp-row');
+    if (!head || !row) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!window.matchMedia('(min-width:1025px)').matches) return; // mobile's stacked .raexp-head has its own padding — leave untouched
+
+    var GAP_START = 100; // px — .raexp-head's own padding-bottom at rest (see its CSS rule above)
+    var GAP_END = 60;    // px — where it settles once the row has scrolled into view
+    var RANGE = 400;     // px of scroll the shrink plays out over
+
+    var ticking = false;
+    function update(){
+      var rowTop = row.getBoundingClientRect().top;
+      var raw = (window.innerHeight - rowTop) / RANGE;
+      var t = Math.max(0, Math.min(1, raw));
+      head.style.paddingBottom = (GAP_START - (GAP_START - GAP_END) * t) + 'px';
+      ticking = false;
+    }
+    window.addEventListener('scroll', function(){
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    }, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+
+<!-- Circular text (素材/circulartext/circulartext.md) — rotating text ring,
+     replaces the old plain-dot .raexp-illu placeholder above. Ported as-is
+     (Web Animations API, no dependency on the raexp script above it). -->
+<script>
+(function () {
+  "use strict";
+
+  var HOVER_RATE = {
+    slowDown: 0.5,
+    speedUp: 4,
+    goBonkers: 20
+  };
+
+  function build(el) {
+    if (el.__circularTextInit) return;
+    el.__circularTextInit = true;
+
+    var text = el.getAttribute("data-text") || el.textContent.trim();
+    var duration = parseFloat(el.getAttribute("data-spin-duration")) || 20;
+    var onHover = el.getAttribute("data-on-hover") || "";
+
+    var letters = Array.from(text);
+    var n = letters.length;
+    if (!n) return;
+
+    el.textContent = "";
+    var factor = Math.PI / n;
+    for (var i = 0; i < n; i++) {
+      var span = document.createElement("span");
+      span.textContent = letters[i];
+      var deg = (360 / n) * i;
+      var offset = factor * i;
+      span.style.transform =
+        "rotateZ(" + deg + "deg) translate3d(" + offset + "px, " + offset + "px, 0)";
+      el.appendChild(span);
+    }
+
+    var spin = el.animate(
+      [{ rotate: "0deg" }, { rotate: "360deg" }],
+      { duration: duration * 1000, iterations: Infinity, easing: "linear" }
+    );
+
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (reduce.matches) spin.pause();
+
+    if (!onHover) return;
+
+    el.addEventListener("mouseenter", function () {
+      if (reduce.matches) return;
+      if (onHover === "pause") { spin.pause(); return; }
+      if (onHover === "goBonkers") el.classList.add("is-bonkers");
+      var rate = HOVER_RATE[onHover];
+      if (rate) spin.updatePlaybackRate(rate);
+    });
+
+    el.addEventListener("mouseleave", function () {
+      el.classList.remove("is-bonkers");
+      if (spin.playState === "paused" && !reduce.matches) spin.play();
+      spin.updatePlaybackRate(1);
+    });
+  }
+
+  function init(root) {
+    (root || document).querySelectorAll("[data-circular-text]").forEach(build);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () { init(); });
+  } else {
+    init();
+  }
+
+  window.CircularText = { init: init };
+})();
+</script>
+<!-- ============ end Expertise ============ -->
+
+<!-- ============ Client 2 (Figma: Explore Webflow, node 208:297) ===========
+     Same testimonial content/marquee+scroll logic as the section below
+     (#trust) — see initTestimonialsMarquee('#client2-track') in main.js —
+     just the newer Figma-specified layout: a heading row (with the "Ahead"
+     script flourish, client2-ahead.svg) alongside the laurels, and each
+     quote in its own bordered, backdrop-blurred card instead of plain
+     bracket-flanked text. -->
+<section class="client2" id="client2">
+  <div class="client2__inner">
+    <div class="client2__head">
+      <div class="client2__heading">
+        <p>Trusted by Teams That</p>
+        <p>Think<img src="img/client2-ahead.svg" class="client2__ahead" alt="Ahead" /></p>
+      </div>
+      <div class="client2__laurels">
+        <div class="client2__laurel">
+          <img src="img/client2-laurel-left.svg" class="client2__laurel-leaf client2__laurel-leaf--left" alt="" aria-hidden="true" />
+          <img src="img/client2-laurel-right.svg" class="client2__laurel-leaf client2__laurel-leaf--right" alt="" aria-hidden="true" />
+          <div class="client2__laurel-text">
+            <span class="client2__laurel-score">100%</span>
+            <span class="client2__laurel-label">On-time Delivery<br />Rate</span>
+          </div>
+        </div>
+        <div class="client2__laurel">
+          <img src="img/client2-laurel-left.svg" class="client2__laurel-leaf client2__laurel-leaf--left" alt="" aria-hidden="true" />
+          <img src="img/client2-laurel-right.svg" class="client2__laurel-leaf client2__laurel-leaf--right" alt="" aria-hidden="true" />
+          <div class="client2__laurel-text">
+            <span class="client2__laurel-score">4.8/5</span>
+            <span class="client2__laurel-label">Client Satisfaction</span>
+          </div>
+        </div>
+        <div class="client2__laurel">
+          <img src="img/client2-laurel-left.svg" class="client2__laurel-leaf client2__laurel-leaf--left" alt="" aria-hidden="true" />
+          <img src="img/client2-laurel-right.svg" class="client2__laurel-leaf client2__laurel-leaf--right" alt="" aria-hidden="true" />
+          <div class="client2__laurel-text">
+            <span class="client2__laurel-score">76%</span>
+            <span class="client2__laurel-label">Long-term Client Ratio</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Sibling of .client2__inner (not nested inside it) so it isn't
+       subject to that flex column's own padding/centering — see the CSS
+       comment on .client2__marquee for why nesting it broke full-bleed. -->
+  <div class="client2__marquee" aria-hidden="true">
+    <div class="client2__track" id="client2-track">
+      <div class="client2__set">
+        <div class="client2__quote"><p>The CXC Studio team took the time to actually understand our problem instead of just following instructions. That made all the difference.</p></div>
+        <div class="client2__quote"><p>Working with CXC Studio feels collaborative, not transactional. They think alongside us, not just for us.</p></div>
+        <div class="client2__quote"><p>What stood out about CXC Studio was how invested the team felt in our success, not just in finishing the project.</p></div>
+        <div class="client2__quote"><p>CXC Studio feels less like a vendor and more like an extension of our own team. They ask the right questions, understand what we actually need, and just get it done.</p></div>
+        <div class="client2__quote"><p>CXC Studio has been a dependable partner from day one. They communicate clearly and always follow through.</p></div>
+        <div class="client2__quote"><p>Even when our brief was vague, the CXC Studio team figured out what we needed and ran with it.</p></div>
+        <div class="client2__quote"><p>CXC Studio's team doesn't just execute, they help us think through the problem first. That's rare.</p></div>
+        <div class="client2__quote"><p>CXC Studio treats our goals like their own. That mindset shift changed how we work together.</p></div>
+        <div class="client2__quote"><p>The CXC Studio team is proactive, sharp, and easy to trust with ambiguous problems.</p></div>
+      </div>
+      <div class="client2__set">
+        <div class="client2__quote"><p>The CXC Studio team took the time to actually understand our problem instead of just following instructions. That made all the difference.</p></div>
+        <div class="client2__quote"><p>Working with CXC Studio feels collaborative, not transactional. They think alongside us, not just for us.</p></div>
+        <div class="client2__quote"><p>What stood out about CXC Studio was how invested the team felt in our success, not just in finishing the project.</p></div>
+        <div class="client2__quote"><p>CXC Studio feels less like a vendor and more like an extension of our own team. They ask the right questions, understand what we actually need, and just get it done.</p></div>
+        <div class="client2__quote"><p>CXC Studio has been a dependable partner from day one. They communicate clearly and always follow through.</p></div>
+        <div class="client2__quote"><p>Even when our brief was vague, the CXC Studio team figured out what we needed and ran with it.</p></div>
+        <div class="client2__quote"><p>CXC Studio's team doesn't just execute, they help us think through the problem first. That's rare.</p></div>
+        <div class="client2__quote"><p>CXC Studio treats our goals like their own. That mindset shift changed how we work together.</p></div>
+        <div class="client2__quote"><p>The CXC Studio team is proactive, sharp, and easy to trust with ambiguous problems.</p></div>
       </div>
     </div>
   </div>
 </section>
+<!-- ============ end Client 2 ============ -->
+<!-- old #trust (Client, pre-update Figma node 208:297) removed — .client2
+     above now covers the same content/marquee, superseding it. -->
 
-<section class="capabilities" id="capabilities" data-reveal>
-  <div class="expertise__inner">
-    <div class="expertise__intro">
-      <h2 class="expertise__heading">Expertise</h2>
-      <p class="expertise__lead">From bold ideas to refined digital experiences, see how we turn business challenges into purposeful design.</p>
-    </div>
-    <div class="expertise__rows">
-      <div class="expertise__row">
-        <div class="expertise__image expertise__image--video" aria-hidden="true">
-          <video class="expertise__video" src="video/Vertical-blur.mp4" autoplay muted loop playsinline disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"></video>
-        </div>
-        <div class="expertise__content">
-          <div class="expertise__meta">
-            <h3 class="expertise__title">Product Identity</h3>
-            <div class="expertise__tags">
-              <span class="expertise__tag">Branding</span>
-              <span class="expertise__tag">Design System</span>
-              <span class="expertise__tag">Web/App Development</span>
-            </div>
-          </div>
-          <p class="expertise__desc">Identity is more than a mark. We turn it into a living system, carried consistently from logo to interface, across web and app, so every touchpoint feels like the same promise kept.</p>
-          <a href="work.html" class="expertise__link">View <span aria-hidden="true">→</span></a>
-        </div>
-      </div>
-      <div class="expertise__row expertise__row--reverse">
-        <div class="expertise__content">
-          <div class="expertise__meta">
-            <h3 class="expertise__title">Product Operations</h3>
-            <div class="expertise__tags">
-              <span class="expertise__tag">CMS</span>
-              <span class="expertise__tag">Platform Integrations</span>
-              <span class="expertise__tag">Admin Dashboard</span>
-              <span class="expertise__tag">Automation</span>
-              <span class="expertise__tag">Data Visualization</span>
-            </div>
-          </div>
-          <p class="expertise__desc">A product is only as strong as what runs behind it. We build the CMS, integrations, and automation that keep teams moving, turning daily operations into a system that scales.</p>
-          <a href="work.html" class="expertise__link">View <span aria-hidden="true">→</span></a>
-        </div>
-        <div class="expertise__image expertise__image--video" aria-hidden="true">
-          <video class="expertise__video" src="video/CMS-demo.mp4" autoplay muted loop playsinline disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"></video>
-        </div>
-      </div>
-      <div class="expertise__row">
-        <div class="expertise__image expertise__image--video" aria-hidden="true">
-          <video class="expertise__video" src="video/Game-blur.mp4" autoplay muted loop playsinline disablePictureInPicture controlsList="nodownload noplaybackrate nofullscreen"></video>
-        </div>
-        <div class="expertise__content">
-          <div class="expertise__meta">
-            <h3 class="expertise__title">Global Engagement</h3>
-            <div class="expertise__tags">
-              <span class="expertise__tag">Gaming</span>
-              <span class="expertise__tag">Global Markets</span>
-              <span class="expertise__tag">Artificial Intelligence</span>
-              <span class="expertise__tag">Payment Integration</span>
-            </div>
-          </div>
-          <p class="expertise__desc">Growth isn't just about reaching new markets, it's about keeping people there. We build the payment, localization, and experience layers that turn global reach into real engagement.</p>
-          <a href="work.html" class="expertise__link">View <span aria-hidden="true">→</span></a>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="trust" id="trust" data-reveal>
-  <div class="testimonials__inner">
-    <div class="testimonials__laurels">
-      <div class="testimonials__laurel">
-        <img src="img/laurel-left.svg" class="testimonials__laurel-leaf testimonials__laurel-leaf--left" alt="" aria-hidden="true" />
-        <img src="img/laurel-right.svg" class="testimonials__laurel-leaf testimonials__laurel-leaf--right" alt="" aria-hidden="true" />
-        <div class="testimonials__laurel-text">
-          <span class="testimonials__laurel-score">100%</span>
-          <span class="testimonials__laurel-label">On-time Delivery<br />Rate</span>
-        </div>
-      </div>
-      <div class="testimonials__laurel">
-        <img src="img/laurel-left.svg" class="testimonials__laurel-leaf testimonials__laurel-leaf--left" alt="" aria-hidden="true" />
-        <img src="img/laurel-right.svg" class="testimonials__laurel-leaf testimonials__laurel-leaf--right" alt="" aria-hidden="true" />
-        <div class="testimonials__laurel-text">
-          <span class="testimonials__laurel-score">4.8/5</span>
-          <span class="testimonials__laurel-label">Client Satisfaction</span>
-        </div>
-      </div>
-      <div class="testimonials__laurel">
-        <img src="img/laurel-left.svg" class="testimonials__laurel-leaf testimonials__laurel-leaf--left" alt="" aria-hidden="true" />
-        <img src="img/laurel-right.svg" class="testimonials__laurel-leaf testimonials__laurel-leaf--right" alt="" aria-hidden="true" />
-        <div class="testimonials__laurel-text">
-          <span class="testimonials__laurel-score">76%</span>
-          <span class="testimonials__laurel-label">Long-term Client Ratio</span>
-        </div>
-      </div>
-    </div>
-    <div class="testimonials__marquee" aria-hidden="true">
-      <div class="testimonials__track">
-        <div class="testimonials__set">
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>The CXC Studio team took the time to actually understand our problem instead of just following instructions. That made all the difference.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>Working with CXC Studio feels collaborative, not transactional. They think alongside us, not just for us.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>What stood out about CXC Studio was how invested the team felt in our success, not just in finishing the project.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio feels less like a vendor and more like an extension of our own team. They ask the right questions, understand what we actually need, and just get it done.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio has been a dependable partner from day one. They communicate clearly and always follow through.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>Even when our brief was vague, the CXC Studio team figured out what we needed and ran with it.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio's team doesn't just execute, they help us think through the problem first. That's rare.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio treats our goals like their own. That mindset shift changed how we work together.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>The CXC Studio team is proactive, sharp, and easy to trust with ambiguous problems.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-        </div>
-        <div class="testimonials__set">
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>The CXC Studio team took the time to actually understand our problem instead of just following instructions. That made all the difference.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>Working with CXC Studio feels collaborative, not transactional. They think alongside us, not just for us.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>What stood out about CXC Studio was how invested the team felt in our success, not just in finishing the project.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio feels less like a vendor and more like an extension of our own team. They ask the right questions, understand what we actually need, and just get it done.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio has been a dependable partner from day one. They communicate clearly and always follow through.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>Even when our brief was vague, the CXC Studio team figured out what we needed and ran with it.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio's team doesn't just execute, they help us think through the problem first. That's rare.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>CXC Studio treats our goals like their own. That mindset shift changed how we work together.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-          <div class="testimonials__quote"><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--open" alt="" aria-hidden="true" /><p>The CXC Studio team is proactive, sharp, and easy to trust with ambiguous problems.</p><img src="img/quote-bracket.svg" class="testimonials__bracket testimonials__bracket--close" alt="" aria-hidden="true" /></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
+<!-- Temporarily hidden (commented out, not deleted) so the user can preview
+     the page with the old CTA out of the way alongside the new #cta2 below.
 <section class="contact" id="contact" data-reveal>
   <iframe class="contact__earth" src="vendor/earth-bg/index.html" title="Decorative animated globe" aria-hidden="true" loading="lazy"></iframe>
   <div class="section-inner contact__inner">
@@ -290,6 +1010,46 @@ finish review, the verdict, and DESIGN.md.
     </div>
   </div>
 </section>
+-->
+
+
+<!-- ============ CTA 2 (Figma: Explore Webflow, node 287:3617) =============
+     Newer CTA design, added below the old #contact rather than replacing
+     it — same pattern as #client2 above. The card's own copy/button is the
+     real design; the entrance around it is a scroll-jack pin (same
+     tall-wrapper + sticky-inner pattern as .hero-pin and .wwd2-pin): as you
+     scroll in, .cta2__card fades in already full-bleed (position:fixed,
+     covering the viewport, silk visible edge-to-edge, background still
+     white like #client2 above it) → its content fades up from below,
+     centered in the viewport → a hold → then the card animates (via CSS
+     transform, not width/height — see main.js for why) down into the
+     normal card shown at rest today, background crossfading to blue as it
+     goes, while content's own position eases from centered down to its
+     natural spot inside the now-shrunk card. See initCta2Transition() in
+     main.js for the exact scroll budgets and the FLIP-style measurement
+     that makes the shrink target the card's real, responsive resting rect
+     instead of a hardcoded size. .cta2__content is a sibling of
+     .cta2__card (not nested inside it) specifically so its own top
+     position can be animated independently, in real viewport pixels,
+     without needing to compensate for .cta2__card's own transform:scale. -->
+<div class="cta2-pin" id="cta2-pin">
+<section class="cta2" id="cta2">
+  <div class="cta2__card"
+       data-silk
+       data-silk-color="#6a6e79"
+       data-silk-speed="0.7"
+       data-silk-scale="1"
+       data-silk-noise="1.5"
+       data-silk-rotation="2.7"></div>
+  <div class="cta2__content">
+    <img src="img/cta2-icon.svg" class="cta2__icon" id="cta2-icon" alt="" aria-hidden="true" />
+    <h2 class="cta2__heading">Your Next <span class="cta2__highlight">Big Idea</span> Starts Here.</h2>
+    <p class="cta2__lead">Have a project in mind?<br />Let's turn your next idea into an experience that makes an impact.</p>
+    <a href="mailto:hello@cxcstudio.com" class="cta2__button">Let's Talk</a>
+  </div>
+</section>
+</div>
+<!-- ============ end CTA 2 ============ -->
 
 <footer class="footer">
   <div class="footer__inner">
@@ -361,6 +1121,7 @@ finish review, the verdict, and DESIGN.md.
   }
 })();
 </script>
+<script src="silk-background.js" defer></script>
 <script src="main.js" defer></script>
 </body>
 </html>
