@@ -1866,15 +1866,45 @@ function initCta2Transition() {
   const section = document.getElementById('cta2');
   const card = section && section.querySelector('.cta2__card');
   const content = section && section.querySelector('.cta2__content');
-  if (!pin || !section || !card || !content) return;
+  const backdrop = section && section.querySelector('.cta2__backdrop');
+  const backdropFill = section && section.querySelector('.cta2__backdrop-fill');
+  const client2 = document.getElementById('client2');
+  const client2Spacer = document.getElementById('client2-spacer');
+  const footer = document.querySelector('.footer');
+  if (!pin || !section || !card || !content || !backdrop) return;
+
+  // How far past the card's own edges the blue backdrop extends at rest —
+  // 80 above, 40 on the other three sides (right/bottom match .cta2's own
+  // padding) — so the backdrop's shrunk-down size reads as "a consistent
+  // margin around the card" instead of an arbitrary rectangle.
+  const BACKDROP_MARGIN = { top: 80, right: 40, bottom: 40, left: 40 };
 
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduce) return; // .cta2-pin never gets .is-armed — card and content simply render at their normal, final CSS state
 
   const narrow = window.matchMedia('(max-width: 720px)').matches;
-  const FADE_SCROLL = narrow ? 160 : 250;
+  // Scroll distance for the cover-in, linear (see coverOffset below) — no
+  // easeOutCubic front-load, for the same reason .hero-pin/.story-wrap's
+  // own cover transition (styles.css) is plain native scroll: a 1:1
+  // scroll-to-motion gesture reads as deliberate, where an eased curve
+  // crammed into a tight budget reads as a snap. The distance itself
+  // (this used to be 160/250, then briefly a full window.innerHeight) was
+  // never really the main problem, though — Client2 was also moving in
+  // lockstep with the incoming card the whole time (see showClient2Flush's
+  // call site below), so there was no stationary reference to actually
+  // perceive the cover against, no matter how long the budget was. Now
+  // that Client2 holds still throughout, this only has to set the pace.
+  const FADE_SCROLL = narrow ? 500 : 650;
   const HOLD_SCROLL = narrow ? 220 : 350;
   const SHRINK_SCROLL = narrow ? 480 : 750; // was 320/500 — felt too fast for how much visual change happens
+  // SHRINK_SCROLL is now two back-to-back sub-phases, not one continuous
+  // move: SCALE_SCROLL shrinks the box down to its final width/height while
+  // it stays centered in the viewport (no position change yet), then
+  // SLIDE_SCROLL carries the now-final-size box straight down from that
+  // centered spot to its real resting position (bottom-anchored — see
+  // .cta2's own align-items:flex-end). Split evenly for now.
+  const SCALE_SCROLL = SHRINK_SCROLL / 2;
+  const SLIDE_SCROLL = SHRINK_SCROLL / 2;
 
   function easeOutCubic(t) {
     return 1 - Math.pow(1 - t, 3);
@@ -1882,18 +1912,18 @@ function initCta2Transition() {
   function lerp(a, b, t) {
     return a + (b - a) * t;
   }
-  function lerpColor(from, to, t) {
-    const r = Math.round(lerp(from[0], to[0], t));
-    const g = Math.round(lerp(from[1], to[1], t));
-    const b = Math.round(lerp(from[2], to[2], t));
-    return `rgb(${r}, ${g}, ${b})`;
-  }
-  const BG_WHITE = [255, 255, 255];
-  const BG_BLUE = [44, 105, 206]; // #2c69ce
-
   let finalRect = { top: 0, left: 0, width: 0, height: 0 };
   let finalContentTop = 0;
   let centeredContentTop = 0;
+  // The backdrop's own settled top/height — same value the "shrinking"
+  // branch below eases toward and the settled branch relies on directly
+  // (backdrop's inline styles are cleared there, so its real on-screen top
+  // becomes exactly finalRect.top - BACKDROP_MARGIN.top by construction —
+  // see measureFinalRect's comment). Hoisted out of the per-frame branch
+  // since it only depends on finalRect, not on scroll position.
+  let backdropFinalTop = 0;
+  let backdropFinalHeight = 0;
+  let client2Height = 0;
 
   // FLIP-style measurement: .cta2 only actually renders "pinned" (top:0,
   // full viewport) once scrolled into its own sticky range — but the
@@ -1920,13 +1950,105 @@ function initCta2Transition() {
     // inset from there, so no separate content-vs-card offset is needed.
     finalContentTop = finalRect.top;
     centeredContentTop = (window.innerHeight - cr.height) / 2;
+    backdropFinalTop = finalRect.top - BACKDROP_MARGIN.top;
+    backdropFinalHeight = finalRect.height + BACKDROP_MARGIN.top + BACKDROP_MARGIN.bottom;
     section.style.cssText = prevSectionStyle;
+  }
+
+  // Client2's natural rendered height (its min-height plus whatever extra
+  // content/breakpoint reflow adds) — measured with any of our own
+  // overrides cleared first so a resize mid-shrink re-reads its true
+  // current-width height, not whatever fixed px height we last forced it
+  // to. update() re-applies the correct override on the very next call
+  // (measure() is always immediately followed by update()), so there's no
+  // visible flicker from clearing it here.
+  function measureClient2() {
+    if (!client2) return;
+    const prev = client2.style.cssText;
+    client2.style.cssText = '';
+    client2Height = client2.getBoundingClientRect().height;
+    client2.style.cssText = prev;
   }
 
   function measure() {
     measureFinalRect();
+    measureClient2();
     const total = window.innerHeight + FADE_SCROLL + HOLD_SCROLL + SHRINK_SCROLL;
+    // Pulls .cta2-pin up by a full viewport height so its sticky child
+    // starts covering while Client2 still has its ENTIRE height left to
+    // scroll through — same technique as .hero-pin/.story-wrap (see that
+    // comment in styles.css): a negative top margin here, cancelled by
+    // adding the same amount back into the pin's own height, leaves
+    // whatever comes after this section sitting at the same page position
+    // as if neither existed.
+    // This has to be a full viewport height, not just FADE_SCROLL: the
+    // incoming card starts its cover-in translateY from
+    // window.innerHeight too (see coverOffset below), and the handoff from
+    // "Client2 in normal flow" to "Client2 pulled into position:fixed,
+    // frozen in place" (see update()) has to be seamless at the exact
+    // instant p crosses 0 — meaning Client2's natural bottom edge at that
+    // instant must already be sitting at exactly window.innerHeight,
+    // matching the frozen position it gets held at pixel for pixel.
+    // Anything smaller would make it visibly jump the moment it gets
+    // pulled into position:fixed.
+    const OVERLAP = window.innerHeight;
+    pin.style.marginTop = `-${OVERLAP}px`;
+    // Deliberately NOT adding OVERLAP back into the pin's own height here
+    // (an earlier version did, "cancelling out" the negative margin so
+    // .cta2-pin's bottom edge landed at the same page position with or
+    // without it — the same idea as .hero-pin/.story-wrap). That canceling
+    // is exactly what was making .cta2 stay sticky for a whole extra
+    // viewport-height of scroll after settling, with nothing happening —
+    // .cta2's own stick budget is (this height) - (.cta2's own height), so
+    // padding the height back out by OVERLAP pads the budget by the same
+    // amount. Leaving it uncancelled here means .cta2 lets go the moment
+    // shrinkT actually reaches 1, and the Footer (and everything after)
+    // simply sits OVERLAP px higher up the page than before — which reads
+    // as Footer showing up right away instead of a full screen late.
     pin.style.height = `${total}px`;
+  }
+
+  // Pulls Client2 into position:fixed with its bottom edge at `topEdge` —
+  // used two different ways by its call sites below: held at a constant
+  // window.innerHeight through the cover-in/hold (frozen in place while
+  // the incoming card/backdrop do the moving), then tracking the
+  // backdrop's own current top edge once it starts shrinking back down
+  // from full-bleed. Can't be a CSS-only trick either way: by the time the
+  // shrink phase runs, Client2 has long since scrolled hundreds of pixels
+  // past out of the document's normal flow, so nothing short of
+  // re-positioning it can put it back on screen. client2Spacer reserves
+  // Client2's normal-flow space while it's pulled out via fixed
+  // positioning, so nothing after it on the page jumps.
+  function showClient2Flush(topEdge) {
+    if (!client2) return;
+    if (client2Spacer) {
+      client2Spacer.style.display = 'block';
+      client2Spacer.style.height = `${client2Height}px`;
+    }
+    client2.style.position = 'fixed';
+    client2.style.top = `${topEdge - client2Height}px`;
+    client2.style.left = '0px';
+    client2.style.width = `${window.innerWidth}px`;
+    client2.style.height = `${client2Height}px`;
+    client2.style.margin = '0';
+    // Same reasoning as the card/backdrop's own pointer-events:none (see
+    // the shrinkT<=0 branch below): position:fixed ignores scroll, so this
+    // sits over whatever's at that screen position on every scroll depth
+    // while active — nothing should ever need to click through to Client2
+    // once it's been pulled out of flow like this.
+    client2.style.pointerEvents = 'none';
+  }
+
+  function releaseClient2() {
+    if (!client2) return;
+    client2.style.position = '';
+    client2.style.top = '';
+    client2.style.left = '';
+    client2.style.width = '';
+    client2.style.height = '';
+    client2.style.margin = '';
+    client2.style.pointerEvents = '';
+    if (client2Spacer) client2Spacer.style.display = 'none';
   }
 
   pin.classList.add('is-armed');
@@ -1934,39 +2056,126 @@ function initCta2Transition() {
   let ticking = false;
 
   function update() {
-    const p = Math.max(0, -pin.getBoundingClientRect().top);
+    const pRaw = -pin.getBoundingClientRect().top;
+    const p = Math.max(0, pRaw);
 
-    const fadeT = Math.min(1, p / FADE_SCROLL);
-    card.style.opacity = String(fadeT);
-    if (fadeT >= 1) pin.classList.add('is-content-revealing');
+    // "Cover" sub-phase (same FADE_SCROLL budget, repurposed): instead of
+    // fading in opacity while already full-bleed, the card+backdrop slide
+    // straight up from below the viewport to fully covering it — no
+    // opacity animation at all now (removed per explicit request — a
+    // WebGL canvas mid-opacity-transition was producing a visible
+    // flicker). coverOffset is an extra translateY added on top of
+    // whatever the shrink phase's own transform is doing (0 for all of
+    // cover+hold, so this is the only thing moving the box during cover).
+    const coverT = Math.min(1, p / FADE_SCROLL);
+    // Linear, not eased — matches .hero-pin/.story-wrap's own plain native
+    // scroll (a sticky element's covered-vs-revealed position is
+    // inherently 1:1 with scroll; there's no "easing" for JS to apply
+    // there, so this mirrors that directly instead of layering an
+    // easeOutCubic front-load on top of an already-tight budget, which is
+    // what made the cover-in feel like it snapped shut almost immediately
+    // no matter how big FADE_SCROLL was made).
+    const coverOffset = lerp(window.innerHeight, 0, coverT);
+    // toggle, not a one-way add: scrolling back up past the reveal
+    // threshold has to hide .cta2__content again too, or it stays visible
+    // (position:absolute, centered in the still-sticky .cta2) and
+    // visually overflows onto whatever's now showing underneath —
+    // Client2, once the card/backdrop themselves have scrolled back out
+    // of their own covering position.
+    pin.classList.toggle('is-content-revealing', coverT >= 0.8);
 
     const shrinkP = Math.max(0, p - FADE_SCROLL - HOLD_SCROLL);
     const shrinkT = Math.min(1, shrinkP / SHRINK_SCROLL);
-    const eased = easeOutCubic(shrinkT);
 
-    // .cta2's own background: white through fade+hold (shrinkT stays 0),
-    // crossfading to blue only as the shrink reveals the backdrop around
-    // the card.
-    section.style.background = lerpColor(BG_WHITE, BG_BLUE, eased);
+    // Two back-to-back sub-phases within the shrink budget — see
+    // SCALE_SCROLL/SLIDE_SCROLL above. scaleT drives size only (position
+    // held centered); slideT only starts once scaleT has fully reached 1,
+    // and drives the move from centered down to the final resting spot.
+    const scaleP = Math.min(shrinkP, SCALE_SCROLL);
+    const scaleT = Math.min(1, scaleP / SCALE_SCROLL);
+    const scaleEased = easeOutCubic(scaleT);
+    const slideP = Math.max(0, shrinkP - SCALE_SCROLL);
+    const slideT = Math.min(1, slideP / SLIDE_SCROLL);
+    const slideEased = easeOutCubic(slideT);
 
-    // Content position: centered while full-bleed, easing to its natural
-    // spot in sync with the card's own shrink — never nested inside the
-    // card, so this is plain viewport pixels, no scale compensation.
-    content.style.top = `${lerp(centeredContentTop, finalContentTop, eased)}px`;
+    // .cta2__backdrop's own CSS background (#2c69ce) is never overridden
+    // from here — it's hidden behind the opaque silk card throughout cover
+    // and hold anyway, and once the shrink starts exposing it, it should
+    // just already be solid blue with no fade-in of its own (removed per
+    // explicit request).
+
+    // Content position: centered while full-bleed and through the scale
+    // sub-phase, then slides down in sync with the card during the slide
+    // sub-phase — never nested inside the card, so this is plain viewport
+    // pixels, no scale compensation.
+    content.style.top = `${lerp(centeredContentTop, finalContentTop, slideEased)}px`;
 
     if (shrinkT <= 0) {
-      // Full-bleed, pinned to the viewport, no transform. max-width:1432px
-      // from the card's own resting CSS would otherwise clamp width:100vw
-      // right back down — needs an explicit override here too.
+      // Covering (or holding, once fully covered) — pinned to the
+      // viewport, full-bleed size, no scale yet. The only motion here is
+      // coverOffset's translateY (see above) — 0 by the time HOLD begins,
+      // so this also correctly renders the static, fully-covering hold
+      // state. max-width:1432px from the card's own resting CSS would
+      // otherwise clamp the width right back down — needs an explicit
+      // override here too. Sized off window.innerWidth/innerHeight in px,
+      // not 100vw/100vh — those CSS units include the scrollbar's own
+      // width on this (long, scrolling) page, which innerWidth excludes,
+      // leaving a gap on the right if the two were mixed.
+      // pointer-events:none is essential here, not cosmetic: position:fixed
+      // ignores scroll, so this element sits over the ENTIRE viewport at
+      // literally every scroll position on the page, including while the
+      // user is scrolled all the way up at the hero or WWD — off-screen
+      // (below the fold, pre-cover) doesn't stop it from still capturing
+      // hover/click, which was silently swallowing WWD's card hover (and
+      // anything else's pointer events) everywhere above this section.
+      // There's nothing interactive inside .cta2__card itself
+      // (content/button live in the sibling .cta2__content instead), so it
+      // never needs pointer events during the animated phases at all.
       card.style.position = 'fixed';
       card.style.top = '0px';
       card.style.left = '0px';
-      card.style.width = '100vw';
+      card.style.width = `${window.innerWidth}px`;
       card.style.maxWidth = 'none';
-      card.style.height = '100vh';
+      card.style.height = `${window.innerHeight}px`;
       card.style.transformOrigin = '0 0';
-      card.style.transform = 'none';
+      card.style.transform = `translate(0px, ${coverOffset}px)`;
       card.style.borderRadius = '0px';
+      card.style.pointerEvents = 'none';
+
+      // Backdrop's width never changes (see the "else" branch below for
+      // why) — always full-bleed, left:0, no horizontal transform at all.
+      backdrop.style.position = 'fixed';
+      backdrop.style.top = '0px';
+      backdrop.style.left = '0px';
+      backdrop.style.width = `${window.innerWidth}px`;
+      backdrop.style.height = `${window.innerHeight}px`;
+      backdrop.style.transformOrigin = '0 0';
+      backdrop.style.transform = `translateY(${coverOffset}px)`;
+      backdrop.style.pointerEvents = 'none';
+      if (backdropFill) backdropFill.style.display = 'none';
+
+      // Client2 freezes in place (bottom edge held at a constant
+      // window.innerHeight) for as long as the pin is engaged at all —
+      // pulled into position:fixed the instant p crosses 0 (pRaw > 0),
+      // seamless with its natural-flow position at that exact instant
+      // since the pin's negative margin above (OVERLAP =
+      // window.innerHeight) makes the two agree pixel for pixel right at
+      // the handoff.
+      // Deliberately NOT tracking coverOffset here (an earlier version
+      // did): gluing Client2's edge to the incoming card's own moving
+      // edge made both appear to travel together, which reads as "the
+      // page is just scrolling normally" rather than "a stationary
+      // Client2 is being covered by an incoming layer" — there's no
+      // motion contrast to see. Holding Client2 still while only the
+      // card/backdrop move (via coverOffset) is what actually sells the
+      // cover, the same way .hero stays motionless while .story-wrap
+      // slides up over it. Below p=0, it's released back to plain
+      // normal-flow scrolling.
+      if (pRaw > 0) {
+        showClient2Flush(window.innerHeight);
+      } else {
+        releaseClient2();
+      }
     } else if (shrinkT >= 1) {
       // Settled — clear every inline override so the card's own CSS
       // (position:relative, normal flex-laid-out size) takes over exactly
@@ -1980,6 +2189,46 @@ function initCta2Transition() {
       card.style.transform = '';
       card.style.transformOrigin = '';
       card.style.borderRadius = '';
+      card.style.pointerEvents = '';
+
+      // Settled — same idea as the card: clear every override so
+      // .cta2__backdrop's own CSS (a fixed 600px-tall compact strip, not
+      // the full 100vh) takes over exactly, pixel for pixel.
+      backdrop.style.position = '';
+      backdrop.style.top = '';
+      backdrop.style.left = '';
+      backdrop.style.width = '';
+      backdrop.style.height = '';
+      backdrop.style.transform = '';
+      backdrop.style.transformOrigin = '';
+      backdrop.style.pointerEvents = '';
+      if (backdropFill) backdropFill.style.display = 'none';
+
+      // Settled — Client2's bottom edge glues to the backdrop's own real
+      // (CSS, not inline) resting top, which is exactly backdropFinalTop
+      // by construction (see measureFinalRect). This has to keep holding
+      // Client2 there for a while after .cta2 itself starts scrolling
+      // away, too, not just up until it un-sticks: .cta2 is still a
+      // 100vh-tall box with only a compact backdrop anchored to its
+      // bottom, so for the whole stretch it takes to scroll fully out of
+      // view, the space above the backdrop (previously backfilled by
+      // Client2) would otherwise flash bare page background right as the
+      // Footer is still rising into view from below — not gone, just
+      // exposed again for that stretch.
+      // The condition that actually matters is whether the Footer has
+      // risen far enough on its own (plain normal-flow scroll, no JS) to
+      // reach Client2's own frozen bottom edge — once it has, Footer's own
+      // content picks up the coverage with no seam, and Client2 can let
+      // go. Comparing against .cta2's live position instead (e.g. "is it
+      // still stuck at top:0") releases far too early: .cta2 keeps a
+      // visible presence well after it un-sticks, and Client2 needs to
+      // keep backfilling behind it for that entire remaining stretch.
+      const footerHasCaughtUp = footer && footer.getBoundingClientRect().top <= backdropFinalTop;
+      if (footerHasCaughtUp) {
+        releaseClient2();
+      } else {
+        showClient2Flush(backdropFinalTop);
+      }
     } else {
       // Card's own DOM size stays fixed at the full-bleed 100vw/100vh the
       // whole time — only `transform` changes — so silk-background.js's
@@ -1987,25 +2236,95 @@ function initCta2Transition() {
       // transform-origin:0 0 (set once, at arm time, below) means scaling
       // keeps the top-left corner anchored at (0,0) before translate
       // moves it to the target position.
-      const sx = finalRect.width / window.innerWidth;
-      const sy = finalRect.height / window.innerHeight;
-      const curSx = lerp(1, sx, eased);
-      const curSy = lerp(1, sy, eased);
-      const curX = lerp(0, finalRect.left, eased);
-      const curY = lerp(0, finalRect.top, eased);
+      //
+      // Position math handles both sub-phases with one formula, no explicit
+      // branching: curW/curH change only via scaleEased (frozen once the
+      // scale sub-phase ends), so "centered for curW/curH" tracks the
+      // shrinking box during that sub-phase (keeping its center fixed at
+      // the viewport's center — true "shrinks inward evenly", not "shrinks
+      // from a fixed corner"), then — because curW/curH stop changing —
+      // becomes a constant equal to "centered for the final size" for the
+      // rest of the slide sub-phase, which is exactly the position the
+      // slide needs to start from. lerp(..., slideEased) then carries it
+      // from there down to finalRect's real spot, only once scaleEased has
+      // already reached 1 (slideP is 0 until scaleP fills SCALE_SCROLL).
+      const curW = lerp(window.innerWidth, finalRect.width, scaleEased);
+      const curH = lerp(window.innerHeight, finalRect.height, scaleEased);
+      const curSx = curW / window.innerWidth;
+      const curSy = curH / window.innerHeight;
+      const centeredLeftForCurW = (window.innerWidth - curW) / 2;
+      const centeredTopForCurH = (window.innerHeight - curH) / 2;
+      const curX = lerp(centeredLeftForCurW, finalRect.left, slideEased);
+      const curY = lerp(centeredTopForCurH, finalRect.top, slideEased) + coverOffset; // +coverOffset is a no-op here (already 0 by this scroll depth) — included for correctness, not just belt-and-suspenders
       card.style.position = 'fixed';
       card.style.top = '0px';
       card.style.left = '0px';
-      card.style.width = '100vw';
+      card.style.width = `${window.innerWidth}px`;
       card.style.maxWidth = 'none';
-      card.style.height = '100vh';
+      card.style.height = `${window.innerHeight}px`;
       card.style.transformOrigin = '0 0';
       card.style.transform = `translate(${curX}px, ${curY}px) scale(${curSx}, ${curSy})`;
-      // Compensates for the scale above so the CSS radius still reads as
-      // a constant ~12px visually instead of shrinking along with the box.
-      const targetRadius = lerp(0, 12, eased);
+      // Compensates for the scale above so the CSS radius still reads as a
+      // constant ~12px visually instead of shrinking along with the box —
+      // tied to scaleEased (radius is a size property, done once scaling
+      // is), not the slide that follows it.
+      const targetRadius = lerp(0, 12, scaleEased);
       const scaleForRadius = Math.min(curSx, curSy) || 1;
       card.style.borderRadius = `${targetRadius / scaleForRadius}px`;
+      card.style.pointerEvents = 'none'; // see the shrinkT<=0 branch above for why this matters everywhere on the page, not just here
+
+      // Backdrop shrinks in exact sync (same scaleEased/slideEased) toward
+      // a strip expanded outward from the card's own finalRect by
+      // BACKDROP_MARGIN — i.e. the same compact strip its settled CSS
+      // (600px tall, bottom-anchored) already represents, arrived at
+      // gradually instead of just snapping there. Same centered-then-slide
+      // formula as the card, but height/vertical-position only — no
+      // horizontal scale or translate at all: the backdrop's width is
+      // already exactly window.innerWidth at every step (BACKDROP_MARGIN's
+      // left+right exactly cancels out the card's own side insets), so
+      // animating it was pure no-op math that risked a mismatched-by-a-
+      // few-px snap against the settled CSS (left:0;right:0, always
+      // exactly full width) right when the shrink finished.
+      const bCurH = lerp(window.innerHeight, backdropFinalHeight, scaleEased);
+      const bCurSy = bCurH / window.innerHeight;
+      const bCenteredTop = (window.innerHeight - bCurH) / 2;
+      const bCurY = lerp(bCenteredTop, backdropFinalTop, slideEased) + coverOffset; // +coverOffset a no-op here, same as the card
+      backdrop.style.position = 'fixed';
+      backdrop.style.top = '0px';
+      backdrop.style.left = '0px';
+      backdrop.style.width = `${window.innerWidth}px`;
+      backdrop.style.height = `${window.innerHeight}px`;
+      backdrop.style.transformOrigin = '0 0';
+      backdrop.style.transform = `translateY(${bCurY}px) scaleY(${bCurSy})`;
+      backdrop.style.pointerEvents = 'none';
+
+      // .cta2__backdrop-fill: the centered-then-slide formula above keeps
+      // the backdrop's center fixed while it shrinks — meaning during
+      // most of the scale sub-phase (and the start of slide), the
+      // backdrop's own bottom edge (bCurY + bCurH) sits well ABOVE the
+      // viewport's bottom edge, not just its top edge sitting below 0.
+      // Client2 backfills the space above it, but nothing backfills the
+      // space below — until now: this fills exactly that gap with the
+      // same solid blue, only shown while it's actually needed (it closes
+      // to 0 height on its own by the time slideEased reaches 1, matching
+      // .cta2__backdrop's own settled CSS bottom:0 exactly).
+      if (backdropFill) {
+        const bBottomEdge = bCurY + bCurH;
+        const gapBelow = window.innerHeight - bBottomEdge;
+        if (gapBelow > 0.5) {
+          backdropFill.style.display = 'block';
+          backdropFill.style.top = `${bBottomEdge}px`;
+          backdropFill.style.width = `${window.innerWidth}px`;
+          backdropFill.style.height = `${gapBelow}px`;
+        } else {
+          backdropFill.style.display = 'none';
+        }
+      }
+
+      // Client2 tracks the backdrop's own current top edge (bCurY) in
+      // real time — glued flush to it the whole way down, not just at
+      // the start/end.
+      showClient2Flush(bCurY);
     }
 
     ticking = false;

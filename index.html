@@ -23,10 +23,59 @@
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<div id="page-loader" aria-hidden="true">
-  <span id="page-loader-percent">0%</span>
+<!-- Intro loading animation (replaces the old %-counter loader): full-screen
+     blue mask with the CXC logo "handwritten" on a loop, then an outro where
+     the white logo fades as a logo-shaped knockout hole opens in the blue
+     and scales up past the viewport, revealing the site underneath. See
+     素材/轉場/CXC logo loading 轉場/INTROLOADERHANDOFF.md for the full spec —
+     this is intro-loader.html's <style>/<div>/<script> ported in verbatim,
+     unchanged (readiness gate is window.load + a minimum loop time, exactly
+     as documented there; timing constants are the file's own finalized
+     values, not re-tuned here). -->
+<style>
+  .intro {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #2479CB;   /* 僅作 JS/SVG 就緒前的過渡底色;就緒後由 JS 清成 transparent,
+                               否則會墊在 SVG 藍底 rect 後面,把鏤空重新填滿(見下方 JS 註解) */
+    overflow: hidden;
+  }
+  .intro svg { display:block; width:100%; height:100%; }
+  .intro.is-done { pointer-events: none; }
+</style>
+<div class="intro" id="intro">
+  <svg id="isvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+    <defs>
+      <!-- 手寫遮罩:沿中心線描繪 -->
+      <mask id="drawMask" maskUnits="userSpaceOnUse" x="-14" y="-14" width="66" height="50">
+        <path id="trace" fill="none" stroke="#fff" stroke-width="8"
+          stroke-linecap="round" stroke-linejoin="round"
+          pathLength="1" stroke-dasharray="1 9" stroke-dashoffset="1"/>
+      </mask>
+      <!-- logo 實心輪廓,拿來當 clip:確保挖洞形狀永遠不會超出 logo 真實外框 -->
+      <clipPath id="logoClip" clipPathUnits="userSpaceOnUse">
+        <path id="logoClipPath"/>
+      </clipPath>
+      <!-- 鏤空遮罩:白底(保留藍) 減去 黑色 logo 形狀(挖洞)。
+           洞本體是一塊「用 logoClip 裁切過的實心矩形」,效果等同 logo 實心輪廓,
+           不會因為外加填補形狀而跑出 logo 邊界(教訓:別再加填補形狀了,見交付文件)。 -->
+      <mask id="knockout" maskUnits="userSpaceOnUse" x="0" y="0" width="3000" height="3000">
+        <rect id="kwbg" fill="#fff" x="0" y="0" width="3000" height="3000"/>
+        <g id="holePos" transform="translate(0 0)">
+          <g id="holeGrow" transform="scale(1)">
+            <g id="holeLocal" transform="scale(1)">
+              <rect id="hole" fill="#000" x="-6" y="-6" width="50" height="34" clip-path="url(#logoClip)"/>
+            </g>
+          </g>
+        </g>
+      </mask>
+    </defs>
+
+    <!-- 藍底,被鏤空遮罩挖洞 -->
+    <rect id="blue" fill="#2479CB" x="0" y="0" width="3000" height="3000" mask="url(#knockout)"/>
+    <!-- 白色手寫 logo,疊在藍底上 -->
+    <g id="inkWrap"><path id="ink" fill="#fff" mask="url(#drawMask)"/></g>
+  </svg>
 </div>
-<script>document.body.classList.add('is-loading');</script>
 <!--
 THESIS: Refuses the case-study-grid agency default. Proves capability by
 showing the seam where design and engineering fuse, not by showing finished
@@ -994,6 +1043,11 @@ finish review, the verdict, and DESIGN.md.
     </div>
   </div>
 </section>
+<!-- Reserves Client2's normal-flow space whenever initCta2Transition()
+     (main.js) pulls the real #client2 into position:fixed to glue it to
+     CTA2's shrinking blue backdrop — see that function's showClient2Flush()
+     for why. Hidden (display:none) the rest of the time. -->
+<div class="client2-spacer" id="client2-spacer" aria-hidden="true"></div>
 <!-- ============ end Client 2 ============ -->
 <!-- old #trust (Client, pre-update Figma node 208:297) removed — .client2
      above now covers the same content/marquee, superseding it. -->
@@ -1034,6 +1088,19 @@ finish review, the verdict, and DESIGN.md.
      without needing to compensate for .cta2__card's own transform:scale. -->
 <div class="cta2-pin" id="cta2-pin">
 <section class="cta2" id="cta2">
+  <!-- The blue backdrop, kept as its own element so it can shrink in sync
+       with .cta2__card (same transform technique, same eased progress)
+       instead of staying a static 100vh block behind it — see
+       initCta2Transition() in main.js. -->
+  <div class="cta2__backdrop"></div>
+  <!-- Covers the gap that opens up below .cta2__backdrop while it's
+       shrinking centered in the viewport (see initCta2Transition() in
+       main.js) — .cta2__backdrop's own height shrinks toward its final
+       ~600px well before its centered position has slid down to meet the
+       viewport's bottom edge, leaving bare page background exposed below
+       it for most of the shrink. Hidden (display:none) outside that
+       window. -->
+  <div class="cta2__backdrop-fill" aria-hidden="true"></div>
   <div class="cta2__card"
        data-silk
        data-silk-color="#6a6e79"
@@ -1054,71 +1121,203 @@ finish review, the verdict, and DESIGN.md.
 <footer class="footer">
   <div class="footer__inner">
     <img src="img/logo_print_horizon-white.png" alt="CXC Studio" class="footer__logo" />
-    <nav class="footer__links">
-      <a href="about.html">About</a>
-      <a href="work.html">Work</a>
-      <a href="#contact">Get in Touch</a>
-    </nav>
     <p class="footer__copy">© 2026 CXC Studio.</p>
   </div>
 </footer>
 
 <script>
-(function () {
-  // Deliberately not deferred and not dependent on main.js — this is its
-  // own small, self-contained failure domain, with a hard timeout, so a
-  // slow video or a broken main.js can never leave the loader stuck up
-  // forever. Videos are already loading on their own (plain <video src>,
-  // no lazy trigger needed here) — this just watches for that to finish.
-  var videos = [].slice.call(document.querySelectorAll('video'));
-  var fontsReady = (document.fonts && document.fonts.ready) || Promise.resolve();
-  var total = videos.length + 1; // +1 for web fonts
-  var loaded = 0;
-  var done = false;
-  var MAX_WAIT = 7000;
+(function(){
+  "use strict";
 
-  var percentEl = document.getElementById('page-loader-percent');
-  var loaderEl = document.getElementById('page-loader');
+  // ---------- 可調參數 ----------
+  var DRAW_MS        = 1500;   // 一次手寫 0→100% 的時間
+  var HOLD_MS        = 320;    // 畫完後停留
+  var FADE_MS        = 380;    // loop 之間淡出
+  var GAP_MS         = 100;    // 淡出後、重畫前的空檔
+  var MIN_LOADING_MS = 2600;   // 最少顯示時間(確保至少完整跑完一次手寫)
+  var OUTRO_MS       = 300;    // 收尾總長(定案值)
+  var INK_FADE_MS    = 90;     // 白色 logo 淡出時間 —— 固定短時距,不隨 OUTRO_MS 縮放
+  var EASE_POWER     = 5;      // 放大曲線:t^power(>1 = 慢→快,定案值)
+  var OVERSHOOT      = 1.4;    // 放大到「剛好蓋滿」再乘這個倍數當餘裕
 
-  function updatePercent() {
-    if (!percentEl) return;
-    var pct = Math.min(100, Math.round((loaded / total) * 100));
-    percentEl.textContent = pct + '%';
+  // logo 實心形狀(來自 logo-svg.svg)
+  var LOGO_D = "M10.5979 2.7814C12.4726 2.75003 14.3885 2.80349 16.2665 2.7802C17.0022 2.77107 17.8666 2.81028 18.5899 2.77352C17.5277 3.80279 16.4941 4.89196 15.4329 5.92154C14.7758 6.55909 13.9416 7.53192 13.1869 7.99501C12.679 8.30076 12.1171 8.50589 11.5316 8.59924C10.679 8.73296 10.0454 8.53994 9.3179 9.30195C8.97092 9.67123 8.78573 10.1638 8.80343 10.6702C8.81716 11.1978 9.0276 11.6463 9.39842 12.02C10.3983 13.0276 12.3042 12.4509 13.3288 11.7887C13.9125 11.4115 14.749 10.5101 15.289 9.96827L18.2997 6.95618C19.2653 5.99048 20.0567 5.09488 21.1971 4.33238C22.648 3.37963 24.3332 2.84429 26.0678 2.78492C28.1843 2.70245 30.2446 3.47522 31.7848 4.92904C33.2638 6.33739 34.1337 8.26799 34.2091 10.3089C34.2727 12.473 33.5455 14.431 32.053 16.0114C30.632 17.5061 28.6765 18.3765 26.6148 18.4322C23.9476 18.4605 21.2496 18.4276 18.5783 18.4364C18.6923 18.277 18.9849 18.0056 19.1309 17.8601L20.1474 16.8447L22.1643 14.8232C22.7977 14.1896 23.4289 13.4736 24.2337 13.0635C24.6976 12.8279 25.1982 12.6731 25.714 12.6058C26.5744 12.4908 27.1227 12.6558 27.839 11.8896C28.1826 11.5231 28.3635 11.0334 28.3405 10.5316C28.3218 10.02 28.0994 9.53706 27.723 9.1901C26.6612 8.2064 24.9275 8.74712 23.8421 9.408C23.2794 9.75061 22.3809 10.7169 21.8765 11.222L18.8181 14.2834C17.916 15.1862 16.9951 16.2132 15.9218 16.9029C12.6209 19.0242 8.3213 19.0605 5.37345 16.305C3.87232 14.8874 2.9906 12.9351 2.91953 10.8716C2.8531 8.78923 3.61652 6.76576 5.04192 5.24628C6.51227 3.6813 8.46121 2.84869 10.5979 2.7814Z";
+  // 手寫中心線(來自 logo-path.svg,並延伸調整過:起筆在上尖角、直接帶向左圈;
+  // 收筆多一小段戳進右下尖角。細節見交付文件)
+  var TRACE_D = "M13.5 3.2 C12.2 4.6 9.4 5.2 9.00015 5.99989C6.26868 6.54598 5.50049 10.5 6.00021 12C6.49992 13.5 7.02549 15.1464 9.50036 15.5C13.0004 16 15.5004 14 18.5004 11C21.5004 7.99994 23.5004 5.00006 27.5004 5.49997C31.5004 5.99989 32.0004 8.5 32.0004 11C32.0004 13.4999 31.0001 15.5 18.5 15.5 L22.6 18.9";
+
+  // logo viewBox 空間的中心與半徑(用 0..38 / 0..22 座標估算)
+  var LOGO_CX = 18.5, LOGO_CY = 10.5;
+  var LOGO_MIN_HALF = 8.1;   // 形狀離中心「最近的邊」約 8 單位(上下方向)
+
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var intro = document.getElementById("intro");
+  var svg   = document.getElementById("isvg");
+  var trace = document.getElementById("trace");
+  var ink   = document.getElementById("ink");
+  var inkWrap = document.getElementById("inkWrap");
+  var blue  = document.getElementById("blue");
+  var kwbg  = document.getElementById("kwbg");
+  var hole  = document.getElementById("hole");
+  var holePos  = document.getElementById("holePos");
+  var holeGrow = document.getElementById("holeGrow");
+  var holeLocal = document.getElementById("holeLocal");
+  var logoClipPath = document.getElementById("logoClipPath");
+
+  ink.setAttribute("d", LOGO_D);
+  logoClipPath.setAttribute("d", LOGO_D);   // 洞用同一份輪廓裁切,永遠貼合 logo 真實邊界
+  trace.setAttribute("d", TRACE_D);
+
+  var W, H, cx, cy, sBase, K, curK = 1;
+
+  function layout(){
+    W = window.innerWidth; H = window.innerHeight;
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.setAttribute("width", W); svg.setAttribute("height", H);
+    cx = W/2; cy = H/2;
+
+    var logoPx = Math.max(120, Math.min(260, W * 0.22));
+    sBase = logoPx / 38;
+
+    // 藍底 / 遮罩區:視窗大小 + 少量邊(洞放大超出範圍會被裁掉,不影響:蓋滿視窗即可)
+    var pad = 4;
+    [blue, kwbg].forEach(function(r){
+      r.setAttribute("x", -pad); r.setAttribute("y", -pad);
+      r.setAttribute("width", W + pad*2); r.setAttribute("height", H + pad*2);
+    });
+    var kn = document.getElementById("knockout");
+    kn.setAttribute("x", -pad); kn.setAttribute("y", -pad);
+    kn.setAttribute("width", W + pad*2); kn.setAttribute("height", H + pad*2);
+
+    // 白色 logo 群組:置中 + 縮放 + 以 logo 中心為原點
+    var local = "scale(" + sBase + ") translate(" + (-LOGO_CX) + " " + (-LOGO_CY) + ")";
+    inkWrap.setAttribute("transform", "translate(" + cx + " " + cy + ") " + local);
+    holeLocal.setAttribute("transform", local);   // 洞內容:與白色 logo 同尺寸(k=1 時完全重疊)
+    holePos.setAttribute("transform", "translate(" + cx + " " + cy + ")");
+    applyHole();
+
+    // 放大目標倍數:洞的最近邊要蓋過視窗對角 + 餘裕
+    var cornerDist = Math.hypot(W/2, H/2);
+    var minHalfPx  = LOGO_MIN_HALF * sBase;
+    K = OVERSHOOT * cornerDist / minHalfPx;
   }
 
-  function markLoaded() {
-    loaded += 1;
-    updatePercent();
-    if (loaded >= total) finish();
+  function applyHole(){
+    holeGrow.setAttribute("transform", "scale(" + curK + ")");
   }
 
-  function finish() {
-    if (done) return;
-    done = true;
-    if (percentEl) percentEl.textContent = '100%';
-    document.body.classList.remove('is-loading');
-    if (loaderEl) {
-      loaderEl.classList.add('is-done');
-      setTimeout(function () {
-        if (loaderEl.parentNode) loaderEl.parentNode.removeChild(loaderEl);
-      }, 600);
+  function setDraw(v){ trace.setAttribute("stroke-dashoffset", String(1 - v)); }
+
+  // easing
+  function easeInOut(t){ return t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
+  function smooth(t){ t = Math.max(0, Math.min(1, t)); return t*t*(3-2*t); }
+  function easeInPow(t){ return Math.pow(Math.max(0,Math.min(1,t)), EASE_POWER); }
+
+  // ---------- 狀態機 ----------
+  var raf = 0, phase = "draw", t0 = 0, startAt = 0, loaded = false, finished = false;
+
+  function startIntro(){
+    cancelAnimationFrame(raf);
+    finished = false;
+    intro.style.display = "block";
+    intro.classList.remove("is-done");
+    intro.style.opacity = "1";
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    curK = 1;
+    layout();                 // 先量好尺寸 / 設定 transform,再重設狀態
+    intro.style.background = "transparent";  // SVG 的藍底 rect 已就位,清掉 CSS 底色(否則會填滿鏤空)
+    hole.setAttribute("opacity", "0");      // loading 期間:不挖洞(藍底全滿)
+    blue.style.opacity = "1";
+    ink.style.opacity = "1";
+    setDraw(0);
+
+    if (reduce){ // 直接跳過
+      loaded = true;
+      finish(true);
+      return;
+    }
+    phase = "draw"; t0 = performance.now(); startAt = t0;
+    loaded = (document.readyState === "complete");
+    raf = requestAnimationFrame(frame);
+  }
+
+  function readyToOutro(now){
+    return loaded && (now - startAt) >= MIN_LOADING_MS;
+  }
+
+  function frame(now){
+    var el = now - t0;
+
+    if (phase === "draw"){
+      var p = Math.min(1, el / DRAW_MS);
+      setDraw(easeInOut(p));
+      ink.style.opacity = "1";
+      if (p >= 1){
+        if (readyToOutro(now)){ phase = "outro"; t0 = now; }
+        else { phase = "hold"; t0 = now; }
+      }
+    }
+    else if (phase === "hold"){
+      if (el >= HOLD_MS){
+        if (readyToOutro(now)){ phase = "outro"; t0 = now; }
+        else { phase = "fade"; t0 = now; }
+      }
+    }
+    else if (phase === "fade"){
+      var pf = Math.min(1, el / FADE_MS);
+      ink.style.opacity = String(1 - pf);
+      if (pf >= 1){ setDraw(0); ink.style.opacity = "0"; phase = "gap"; t0 = now; }
+    }
+    else if (phase === "gap"){
+      if (el >= GAP_MS){ phase = "draw"; t0 = now; }
+    }
+    else if (phase === "outro"){
+      var p = Math.min(1, el / OUTRO_MS);
+      renderOutro(p);
+      if (p >= 1){ finish(); return; }
+    }
+
+    raf = requestAnimationFrame(frame);
+  }
+
+  function renderOutro(p){
+    // 白色 logo 淡出 ↔ logo 鏤空淡入(交叉,時間很短、跟 OUTRO_MS 脫鉤)
+    var cf = smooth(Math.min(1, (p * OUTRO_MS) / INK_FADE_MS));
+    ink.style.opacity = String(1 - cf);
+    hole.setAttribute("opacity", String(cf));
+    blue.style.opacity = "1";
+    // 放大:ease-in(慢→快),從一開始就與交叉淡出重疊
+    curK = 1 + (K - 1) * easeInPow(p);
+    applyHole();
+    // 收尾最後一小段連整層一起淡掉,消除任何邊緣殘影
+    intro.style.opacity = String(1 - smooth((p - 0.9) / 0.1));
+  }
+
+  function finish(instant){
+    finished = true;
+    phase = "done";
+    cancelAnimationFrame(raf);
+    intro.classList.add("is-done");
+    if (instant){
+      intro.style.transition = "opacity .35s ease";
+      intro.style.opacity = "0";
+      setTimeout(reallyRemove, 400);
+    } else {
+      reallyRemove();
     }
   }
-
-  if (!loaderEl || total === 0) {
-    finish();
-  } else {
-    videos.forEach(function (video) {
-      if (video.readyState >= 3) {
-        markLoaded();
-      } else {
-        video.addEventListener('canplaythrough', markLoaded, { once: true });
-        video.addEventListener('error', markLoaded, { once: true });
-      }
-    });
-    fontsReady.then(markLoaded, markLoaded);
-    setTimeout(finish, MAX_WAIT);
+  function reallyRemove(){
+    intro.style.display = "none";
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
   }
+
+  window.addEventListener("load", function(){ loaded = true; });
+  window.addEventListener("resize", function(){ if (!finished) layout(); });
+
+  startIntro();
 })();
 </script>
 <script src="silk-background.js" defer></script>

@@ -36,35 +36,6 @@ body {
   overflow-x: hidden;
 }
 
-body.is-loading {
-  overflow: hidden;
-}
-
-#page-loader {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg);
-  transition: opacity 0.5s ease;
-}
-
-#page-loader.is-done {
-  opacity: 0;
-  pointer-events: none;
-}
-
-#page-loader-percent {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: clamp(2rem, 6vw, 3.5rem);
-  letter-spacing: -0.02em;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -521,7 +492,7 @@ a {
    independent instance on #client2-track. */
 .client2 {
   position: relative;
-  min-height: 100vh; /* one full page tall */
+  min-height: 1100px; /* was 700px, then 610px — raised again so there's more normal scrolling through Client2 before CTA2's cover-in engages (see initCta2Transition() in main.js) */
   background: #fff;
   overflow: hidden;
   /* Centers .client2__inner + .client2__marquee as one group in the
@@ -531,6 +502,14 @@ a {
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+/* Reserves .client2's normal-flow space while initCta2Transition() (main.js)
+   has pulled the real #client2 into position:fixed — see that function's
+   showClient2Flush()/releaseClient2(). Height is set inline by JS to match
+   #client2's own measured height; display toggles with it. */
+.client2-spacer {
+  display: none;
 }
 
 .client2__inner {
@@ -695,12 +674,17 @@ a {
      absorbed the negative margins into the centering math instead of
      actually shifting it — full-bleed never took effect.) margin-top
      replaces the flex `gap` .client2__inner used to provide between the
-     heading row and this; margin-bottom replaces the bottom padding
-     .client2__inner used to provide after this, back when this was its
-     last child. */
+     heading row and this. No margin-bottom any more — that used to
+     provide breathing room after this as .client2's last child, back
+     before .client2 switched to vertically centering the whole
+     .client2__inner + .client2__marquee group (justify-content:center,
+     see .client2's own comment); left in place, it silently made that
+     centering math lopsided — the margin box, not just the visible
+     marquee, participates in flex alignment, so this stale ~160px
+     pushed the whole group up by half that amount instead of landing
+     it centered. */
   width: 100%;
   margin-top: 76px;
-  margin-bottom: clamp(88px, 12vw, 160px);
   overflow: hidden;
   backdrop-filter: blur(4.5px);
   -webkit-backdrop-filter: blur(4.5px);
@@ -1553,7 +1537,12 @@ a {
    the .hero-pin/.hero and .wwd2-pin/.wwd2-sticky pattern. Fixed height:
    100vh instead of min-height, since it must always fill the viewport
    while pinned regardless of the card's own current (JS-driven, animated)
-   size. */
+   size.
+   margin-top and height are both set by JS (measure(), in main.js) — a
+   negative margin pulls this pin's own top edge up by one FADE_SCROLL,
+   with the same amount added back into its height, so Client2 still has
+   exactly that much of itself left to scroll through when the cover-in
+   starts (same cancel-it-out technique as .hero-pin/.story-wrap below). */
 .cta2-pin {
   position: relative;
 }
@@ -1565,14 +1554,45 @@ a {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 40px;
+  padding: 0 40px 40px;
   box-sizing: border-box;
-  /* Flat solid blue — was a white->blue gradient (see git history) to
-     blend seamlessly with .client2's white above. Only actually visible
-     once the card has shrunk back down during the entrance transition
-     (see initCta2Transition()) — while full-bleed, the card's own
-     position:fixed covers this completely. */
+  /* No background of its own — that's .cta2__backdrop now (see below),
+     kept as a separate element specifically so it can shrink in sync with
+     .cta2__card instead of staying a static 100vh block. */
+}
+
+/* Blue backdrop, behind .cta2__card and .cta2__content. This CSS is the
+   settled/resting/no-JS state directly — bottom-anchored (matches
+   .cta2's own align-items:flex-end) — 600px = 80 (top margin) + 480
+   (.cta2__card's own height) + 40 (bottom margin, matches .cta2's own
+   padding-bottom) — a compact strip wrapping the card near the bottom of
+   the viewport, not the full 100vh height and not flush with the top.
+   With JS active, initCta2Transition() overrides position/size/transform
+   every frame during the animated phases (full-bleed through shrinking),
+   in exact sync with .cta2__card's own shrink, then clears every override
+   once settled so this exact CSS takes back over — meaning under
+   prefers-reduced-motion or if JS fails, this is what shows from the
+   start: already the compact, bottom-anchored size. */
+.cta2__backdrop {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 600px;
   background: #2c69ce;
+}
+
+/* Hidden by default (only the settled/resting state, which never needs
+   it — .cta2__backdrop's own CSS already reaches the bottom exactly).
+   JS shows and positions it only during the shrink's scale sub-phase —
+   see initCta2Transition() in main.js and the HTML comment above this
+   element. */
+.cta2__backdrop-fill {
+  display: none;
+  position: fixed;
+  left: 0;
+  background: #2c69ce;
+  pointer-events: none;
 }
 
 /* Pure backdrop now — icon/heading/lead/button live in the sibling
@@ -1726,22 +1746,6 @@ a {
   height: 18px;
   width: auto;
   opacity: 0.7;
-}
-
-.footer__links {
-  display: flex;
-  gap: 28px;
-}
-
-.footer__links a {
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--text-faint);
-  transition: color 0.2s ease;
-}
-
-.footer__links a:hover {
-  color: var(--text-dim);
 }
 
 .footer__copy {
