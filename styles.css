@@ -833,6 +833,18 @@ a {
   display: flex;
   width: max-content;
   transform: translateX(-50%);
+  /* Hand-draggable (touch or mouse — see the pointerdown/move/up listeners
+     in initTestimonialsMarquee, main.js), on top of the existing autoplay:
+     pan-y (not auto/none) claims horizontal gestures for that JS drag
+     while still letting a vertical swipe here scroll the page normally
+     instead of getting stuck on this row. */
+  touch-action: pan-y;
+  cursor: grab;
+  user-select: none;
+}
+
+.client2__track:active {
+  cursor: grabbing;
 }
 
 .client2__set {
@@ -892,39 +904,24 @@ a {
   }
 
   /* Top-to-bottom instead of wrapping 2-then-1 (same treatment as Numbers
-     Tell the Story's stats, see that section's own mobile rule). */
+     Tell the Story's stats, see that section's own mobile rule).
+     align-items:flex-end only lines up the individual laurel badges within
+     .client2__laurels' own box — it doesn't move that box itself, which
+     .client2__head (a wrapped flex row, justify-content:flex-start for the
+     heading's own left-align) was still packing flush against the left
+     edge, same as the heading above it. margin-left:auto is what actually
+     pushes the whole laurels block to the opposite (right) edge of
+     .client2__head's row — an auto margin on a flex item claims all
+     remaining space on that side regardless of the container's own
+     justify-content, and works the same whether or not it's wrapped onto
+     its own line. */
   .client2__laurels {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: flex-end;
     gap: 24px;
+    margin-left: auto;
   }
 
-  /* Testimonial quotes: hand-scrollable on mobile instead of the passive,
-     scroll-speed-driven marquee (initTestimonialsMarquee bails out under
-     this same breakpoint — see main.js) — plain native horizontal scroll
-     with momentum, scrollbar hidden cosmetically. .client2__track's own
-     static transform:translateX(-50%) (there so the *desktop* marquee's
-     doubled .client2__set starts mid-loop, seamless before JS takes over)
-     would instead just hide the first half of the content off-screen to
-     the left here, so both that and the now-redundant second .client2__set
-     (only ever needed for the auto-scroll's infinite loop) are cleared. */
-  .client2__marquee {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  .client2__marquee::-webkit-scrollbar {
-    display: none;
-  }
-
-  .client2__track {
-    transform: none;
-  }
-
-  .client2__set:nth-of-type(2) {
-    display: none;
-  }
 }
 
 /* ── Numbers Tell the Story → What We Do: shared sticky background ────────
@@ -1678,7 +1675,7 @@ a {
     position: static;
     height: auto;
     overflow: visible;
-    padding-top: clamp(64px, 14vw, 120px);
+    padding: clamp(64px, 14vw, 120px) 0 clamp(48px, 10vw, 96px);
     gap: 32px;
   }
 
@@ -1757,6 +1754,12 @@ a {
      box's flex:1 1 auto). */
   .wwd2-card__body {
     border-right: none;
+    /* Desktop's own border-bottom:none (see .wwd2-card__body's base rule)
+       is deliberate there — a horizontal .wwd2-card__bar sits right below
+       it instead, so a bottom border would just double up. Mobile's bar is
+       a vertical rule at the side (see below), leaving the text card's own
+       bottom edge with no line at all unless this is added back. */
+    border-bottom: 1px solid #3e3e3e;
     justify-content: flex-end;
   }
 
@@ -1782,15 +1785,49 @@ a {
     box-shadow: none;
   }
 
+  /* iOS Safari's own default tap highlight (a translucent grey flash on
+     tap) reads as an unwanted hover-like effect on these cards even though
+     .is-active-hover itself never gets added here — this is the browser's
+     own default, unrelated to that class. */
+  .wwd2-card {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   /* initWwdMobileEntrance() (main.js) adds .is-armed to #wwd2 too — it's
      what the heading/tag entrance further up this file keys off — but
      .wwd2-pin.is-armed .wwd2-card above (desktop's "wait offscreen right
      until scrolled into place" state) isn't relevant here: mobile cards
-     have no slide-in of their own and must just stay visible, exactly like
-     the prefers-reduced-motion override for the same rule. */
+     get their own separate entrance instead (.wwd2-card--pending/.is-in
+     below, driven by initWwdMobileCards() in main.js), so this just
+     restores the safe default this rule would otherwise override. */
   .wwd2-pin.is-armed .wwd2-card {
     opacity: 1;
     transform: none;
+  }
+
+  /* Cards' own entrance: fade in from the right (same direction as
+     desktop's own carousel entrance — see cardStartX in initWwdSequence()),
+     fast-to-slow, as each scrolls into view (initWwdMobileCards() in
+     main.js) — a small fixed per-index transition-delay (set inline by
+     that same function) gives consecutive cards a slight ripple on top of
+     whatever gap scrolling itself already puts between them. Higher
+     specificity than the .wwd2-pin.is-armed .wwd2-card rule above (which
+     would otherwise always win the opacity/transform tug-of-war, since
+     .is-armed is present here for the heading/tag entrance too) so this
+     can actually hide a card before its own .is-in lands.
+     .wwd2-card--pending is only ever added by JS, right before it starts
+     observing — a JS failure before that point leaves every card at its
+     plain, fully-visible default (the .wwd2-pin.is-armed .wwd2-card rule
+     above), never stuck invisible. */
+  .wwd2-pin.is-armed .wwd2-card.wwd2-card--pending {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+
+  .wwd2-pin.is-armed .wwd2-card.wwd2-card--pending.is-in {
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 

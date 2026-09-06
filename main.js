@@ -1063,9 +1063,15 @@ function initNumbersStage(onSeamComplete) {
 // reusing initWwdSequence()'s internals) so it doesn't depend on any of
 // that function's later const declarations, which mobile's early return
 // below never reaches.
-function initWwdMobileEntrance(pin, titleGroup, tag, tagWrap) {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; // CSS's own reduced-motion block already keeps everything visible without .is-armed
-  if (!pin || !titleGroup || !tag) return;
+function initWwdMobileEntrance(pin, titleGroup, tag, tagWrap, onHeadingDone) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (onHeadingDone) onHeadingDone(); // reduced motion never plays this entrance at all — cards (initWwdMobileCards) still need the go-ahead, immediately
+    return;
+  }
+  if (!pin || !titleGroup || !tag) {
+    if (onHeadingDone) onHeadingDone(); // same — don't leave cards waiting forever on an entrance that's never going to run
+    return;
+  }
 
   const TAG_TEXT = 'to Connect.';
   const CHAR_STAGGER = 0.03;
@@ -1097,14 +1103,30 @@ function initWwdMobileEntrance(pin, titleGroup, tag, tagWrap) {
     revealed = true;
     pin.classList.add('is-revealing');
     // Same 1100ms as desktop's triggerReveal() — timed to land right after
-    // the heading (0.6s) + line (0.6s delay, 0.5s) finish.
+    // the heading (0.6s) + line (0.6s delay, 0.5s) finish. onHeadingDone
+    // (initWwdMobileCards' own flush, wired up at the call site below)
+    // fires here too — the cards' own entrance isn't allowed to actually
+    // show anything until the heading+line animation this section owns has
+    // genuinely finished playing.
     setTimeout(() => {
       tag.style.opacity = '1';
       renderChars(TAG_TEXT, true);
+      if (onHeadingDone) onHeadingDone();
     }, 1100);
   }
 
   if ('IntersectionObserver' in window) {
+    // titleGroup is short (just the heading + line, ~40-50px tall) —
+    // threshold:0.3 alone means "30% of its own tiny height," which is
+    // satisfied the instant it clips the very bottom edge of the
+    // viewport, while it's still sitting far below where anyone's
+    // actually looking. By the time it scrolls up into a comfortable
+    // reading position, the reveal (and its own ~1.1s of real-time
+    // animation) has already long finished — reads as "it was just
+    // already there," not as an entrance. The -35% bottom rootMargin
+    // shrinks the effective observed viewport, so intersection only
+    // fires once titleGroup has actually scrolled up into (roughly) the
+    // top 65% of the screen — much closer to where it's actually seen.
     const io = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -1112,11 +1134,76 @@ function initWwdMobileEntrance(pin, titleGroup, tag, tagWrap) {
           io.disconnect();
         }
       });
-    }, { threshold: 0.3 });
+    }, { threshold: 0.3, rootMargin: '0px 0px -35% 0px' });
     io.observe(titleGroup);
   } else {
     reveal();
   }
+}
+
+// Mobile's version of the cards' own entrance (desktop's horizontal
+// carousel slide-in has no equivalent here — see initWwdSequence()'s
+// mobile early return): each card fades in from the left with an eased
+// fast-to-slow curve as it scrolls into view, and a small fixed per-index
+// delay on top of that gives consecutive cards a slight ripple on top of
+// whatever natural gap scrolling itself already puts between them (most
+// noticeable if several become visible in the same scroll step). One
+// IntersectionObserver watches all six; the "safe by default" pattern
+// applies here too — .wwd2-card--pending (added below, right before
+// observing) is what actually hides a card, so a JS failure before this
+// point just leaves every card in its plain, fully-visible default state
+// rather than stuck invisible.
+// Returns a flush function — call it once the heading+line entrance
+// (initWwdMobileEntrance's own onHeadingDone, wired up at the call site
+// below) has actually finished. Each card still gets observed and
+// individually tracked here as soon as it scrolls into view, same as
+// before — what's gated is only the visible reveal (.is-in) itself, which
+// a card can't receive until BOTH it has scrolled into view AND the
+// heading's animation is done, whichever happens later. In the ordinary
+// case (heading is above the cards, so its animation finishes first) this
+// is a no-op; it only matters for a fast scroll or a tall/short viewport
+// where a card could otherwise have scrolled into view first.
+function initWwdMobileCards(cards) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return () => {};
+  if (!cards || !cards.length) return () => {};
+
+  const STAGGER_MS = 80; // small, fixed gap per card index — see comment above
+
+  cards.forEach((card, i) => {
+    card.style.transitionDelay = `${i * STAGGER_MS}ms`;
+    card.classList.add('wwd2-card--pending');
+  });
+
+  let headingDone = false;
+  const waitingForHeading = [];
+
+  function revealCard(card) {
+    if (headingDone) {
+      card.classList.add('is-in');
+    } else {
+      waitingForHeading.push(card);
+    }
+  }
+
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          revealCard(entry.target);
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -10% 0px' });
+    cards.forEach((card) => io.observe(card));
+  } else {
+    cards.forEach((card) => revealCard(card));
+  }
+
+  return function flush() {
+    headingDone = true;
+    waitingForHeading.forEach((card) => card.classList.add('is-in'));
+    waitingForHeading.length = 0;
+  };
 }
 
 // ── What We Do: one continuous experience under a single heading ────────
@@ -1174,11 +1261,16 @@ function initWwdSequence() {
   // right behind these WWD cards on mobile.
   if (window.matchMedia('(max-width: 720px)').matches) {
     initNumbersStage();
-    // The heading/line/tag entrance is the one piece of this sequence
-    // mobile keeps — see initWwdMobileEntrance() above for why it's a
-    // separate, IntersectionObserver-driven function instead of reusing
-    // the scroll-jack code below.
-    initWwdMobileEntrance(pin, titleGroup, tag, tagWrap);
+    // The heading/line/tag entrance and the cards' own fade-in are the two
+    // pieces of this sequence mobile keeps — see initWwdMobileEntrance()/
+    // initWwdMobileCards() above for why they're separate,
+    // IntersectionObserver-driven functions instead of reusing the
+    // scroll-jack code below. Cards aren't allowed to actually appear
+    // until the heading+line animation is done (initWwdMobileCards'
+    // returned flush function, handed to initWwdMobileEntrance as
+    // onHeadingDone) — see both functions' own comments for why.
+    const flushWwdMobileCards = initWwdMobileCards(cards);
+    initWwdMobileEntrance(pin, titleGroup, tag, tagWrap, flushWwdMobileCards);
     return;
   }
 
@@ -1362,6 +1454,19 @@ function initWwdSequence() {
   // titleGroup is already sitting at its centered offset.
   let seamComplete = reduce;
   let tagExitDone = reduce;
+  // The scroll position (p) at the exact instant the tag actually finished
+  // exiting — null until then. Reposition/cards (below) are driven off
+  // "distance scrolled since this", not off a fixed ENTRANCE_HOLD_SCROLL +
+  // TAG_EXIT_SCROLL offset from p directly, specifically because the tag's
+  // own finish time isn't purely distance-based any more (see TAG_DWELL_MS
+  // — it also has to have been visible for a minimum real time). A fast
+  // scroll can carry p past that fixed distance well before the dwell
+  // timer allows the tag to actually start fading, and reposition/cards
+  // reading raw p directly would start sliding in while the (still fully
+  // visible, dwell-held) tag box is still sitting there — the "時機重疊"
+  // overlap this fixes. Tying them to tagExitFinishedAtP instead means
+  // they literally cannot begin until the tag has, for real, finished.
+  let tagExitFinishedAtP = reduce ? 0 : null;
   // Once the cards have fully entered at least once, the whole entrance
   // (tag exit, heading reposition, card group entrance) locks in place —
   // scrolling back up from the card carousel only scrubs the carousel back
@@ -1435,26 +1540,14 @@ function initWwdSequence() {
     if (!reduce) {
       const tagExitP = Math.max(0, p - ENTRANCE_HOLD_SCROLL);
       let tagExitT = Math.min(1, tagExitP / TAG_EXIT_SCROLL);
+      const tagDwellDone = tagRevealed && performance.now() - tagRevealedAt >= TAG_DWELL_MS;
 
-      const repoP = Math.max(0, p - ENTRANCE_HOLD_SCROLL - TAG_EXIT_SCROLL);
-      let repoT = Math.min(1, repoP / REPOSITION_SCROLL);
-
-      // Cards only start once the heading has fully finished repositioning
-      // to top (repoT reaching 1) — starting any earlier had them sliding
-      // in underneath/over heading text that hadn't settled yet.
-      const cardBaseP = Math.max(0, p - ENTRANCE_HOLD_SCROLL - TAG_EXIT_SCROLL - REPOSITION_SCROLL);
-
-      if (!entranceLocked && cardBaseP >= CARD_ENTRANCE_TOTAL) entranceLocked = true;
       if (entranceLocked) {
         // Pin the whole entrance at its finished state regardless of the
         // current (possibly-decreasing, if scrolling back up) p — only the
         // horizontal card carousel below stays live in both directions.
         tagExitT = 1;
-        repoT = 1;
-      }
-
-      const tagDwellDone = tagRevealed && performance.now() - tagRevealedAt >= TAG_DWELL_MS;
-      if (tagDwellDone && (tagExitP > 0 || entranceLocked)) {
+      } else if (tagDwellDone && tagExitP > 0) {
         // The tag's own entrance (.is-revealing .connect__tag, in
         // styles.css) is a `forwards`-filled CSS animation on these same
         // two properties — once played, its filled end state keeps
@@ -1467,12 +1560,26 @@ function initWwdSequence() {
         tag.style.transform = `translateY(${-tagExitT * TAG_LIFT}px)`;
         if (tagExitT >= 1 && !tagExitDone) {
           tagExitDone = true;
+          tagExitFinishedAtP = p;
           // The tag is fully invisible by now (opacity 0) — collapse its
           // wrapper's box too so it stops holding open a gap between the
           // heading and the cards below (see .wwd2-tag-wrap.is-collapsed).
           if (tagWrap) tagWrap.classList.add('is-collapsed');
         }
       }
+
+      // Distance scrolled since the tag actually finished (see
+      // tagExitFinishedAtP's own comment above) — 0 (nothing yet) until
+      // that's set. Cards only start once the heading has also fully
+      // finished repositioning to top (repoT reaching 1) — starting any
+      // earlier had them sliding in underneath/over heading text that
+      // hadn't settled yet.
+      const repoP = tagExitFinishedAtP === null ? 0 : Math.max(0, p - tagExitFinishedAtP);
+      let repoT = Math.min(1, repoP / REPOSITION_SCROLL);
+      const cardBaseP = Math.max(0, repoP - REPOSITION_SCROLL);
+
+      if (!entranceLocked && cardBaseP >= CARD_ENTRANCE_TOTAL) entranceLocked = true;
+      if (entranceLocked) repoT = 1;
 
       titleGroup.style.transform = `translateY(${centerOffset * (1 - repoT)}px)`;
 
@@ -1914,15 +2021,6 @@ function initTestimonialsMarquee(trackSelector) {
   if (!track) return;
 
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  // Mobile gets a plain, hand-scrollable row instead (see the
-  // @media (max-width:720px) rules on .client2__marquee/.client2__track in
-  // styles.css) — a continuous JS-driven transform fighting a finger
-  // actively dragging the same element would either fling it back into
-  // motion the instant the user lets go, or visibly stutter against the
-  // touch, neither of which reads as "scroll this yourself." Returning
-  // here before ever touching track.style.transform leaves the CSS
-  // override (transform:none) as the only thing positioning it.
-  if (window.matchMedia('(max-width: 720px)').matches) return;
 
   const BASE_DURATION = 75; // seconds per loop at rest, matches the original pace
   const SCROLL_BOOST = 2.2; // how strongly scroll velocity influences speed
@@ -1955,15 +2053,49 @@ function initTestimonialsMarquee(trackSelector) {
     lastScrollTime = now;
   }, { passive: true });
 
+  // Hand-drag (touch or mouse) — pauses the autoplay advance for exactly as
+  // long as a finger/pointer is actually down on the track, and hands it
+  // straight back afterward at the same slow idle pace, rather than
+  // replacing the marquee with a separate scroll mechanism. Pointer Events
+  // cover touch and mouse with the same listeners, so this is universal,
+  // not mobile-only — a real click-drag on desktop works the same way.
+  let dragging = false;
+  let dragPointerId = null;
+  let dragStartX = 0;
+  let dragStartOffset = 0;
+
+  track.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    dragPointerId = e.pointerId;
+    dragStartX = e.clientX;
+    dragStartOffset = offset;
+    velocityBoost = 0; // a drag starting mid-scroll-boost shouldn't keep that boost once released
+    track.setPointerCapture(e.pointerId);
+  });
+
+  track.addEventListener('pointermove', (e) => {
+    if (!dragging || e.pointerId !== dragPointerId) return;
+    offset = dragStartOffset + (e.clientX - dragStartX);
+  });
+
+  function endDrag(e) {
+    if (!dragging || e.pointerId !== dragPointerId) return;
+    dragging = false;
+    dragPointerId = null;
+  }
+  track.addEventListener('pointerup', endDrag);
+  track.addEventListener('pointercancel', endDrag);
+
   let lastFrameTime = performance.now();
   function frame(now) {
     const dt = (now - lastFrameTime) / 1000;
     lastFrameTime = now;
 
-    velocityBoost *= Math.exp(-dt / DECAY_TAU);
-
-    const speed = baseSpeed + velocityBoost;
-    offset += speed * dt;
+    if (!dragging) {
+      velocityBoost *= Math.exp(-dt / DECAY_TAU);
+      const speed = baseSpeed + velocityBoost;
+      offset += speed * dt;
+    }
 
     if (setWidth > 0) {
       offset = (((offset % setWidth) + setWidth) % setWidth) - setWidth;
