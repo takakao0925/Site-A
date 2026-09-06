@@ -626,7 +626,11 @@ finish review, the verdict, and DESIGN.md.
   .raexp-video{display:none}
 
   .raexp-mvideo{
-    display:block;width:100%;aspect-ratio:16/9;overflow:hidden;
+    /* aspect-ratio matches the source videos' own real dimensions (740x1110,
+       confirmed by reading each file's moov/trak/tkhd box directly) — was
+       16/9, forcing a landscape box onto portrait footage and cropping off
+       a large chunk top/bottom via object-fit:cover below. */
+    display:block;width:100%;aspect-ratio:2/3;overflow:hidden;
     border:1px solid var(--raexp-hair);border-bottom:none;background:var(--raexp-dark);
   }
   .raexp-mvideo video{width:100%;height:100%;object-fit:cover;display:block}

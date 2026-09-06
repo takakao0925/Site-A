@@ -27,6 +27,21 @@
 
 html {
   color-scheme: dark;
+  /* <html>, not <body>, is the element that actually scrolls the page —
+     overflow-x:hidden on body alone (below) only clips body's own content
+     against ITS OWN box, it doesn't stop the document's root-level
+     horizontal scroll/overflow from existing at all. Some deeply-nested
+     element occasionally renders a hair wider than the viewport (observed:
+     ~16px, right around when page content finishes loading in) — normally
+     harmless, since nothing is actually meant to be seen out there, but
+     .nav (position:fixed; left:0; right:0) computes its own width against
+     the *true* viewport-including-that-overflow, not against the visible,
+     scrollable-content width, so it rendered wider than the screen too —
+     reads as uneven left/right padding, worse once the header's expanded
+     "scrolled" state made that gap even more visible. This is the actual
+     fix, at the root — .nav (styles.css) has no changes of its own to
+     make, since it was already correctly written as left:0/right:0. */
+  overflow-x: hidden;
 }
 
 body {
