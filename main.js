@@ -5,16 +5,25 @@
 // try/catch around the dynamic import further down.
 
 // Language toggle — UI-only for now, no localized copy wired up yet.
-const langToggle = document.getElementById('lang-toggle');
-if (langToggle) {
-  langToggle.addEventListener('click', () => {
-    const next = langToggle.dataset.lang === 'en' ? 'zh' : 'en';
-    langToggle.dataset.lang = next;
-    langToggle.querySelectorAll('.nav__lang-option').forEach((el) => {
+// Two of these now exist (#lang-toggle in the desktop capsule,
+// #lang-toggle-mobile in the mobile dropdown menu — see index.html's nav
+// comment for why they're separate elements, not one moved by CSS) — kept
+// in sync here so either one reflects the other's state, in case a resize
+// (e.g. rotating a tablet) reveals the one that wasn't just clicked.
+const langToggles = [...document.querySelectorAll('.nav__lang')];
+function setLangToggles(next) {
+  langToggles.forEach((toggle) => {
+    toggle.dataset.lang = next;
+    toggle.querySelectorAll('.nav__lang-option').forEach((el) => {
       el.classList.toggle('nav__lang-option--active', el.dataset.value === next);
     });
   });
 }
+langToggles.forEach((toggle) => {
+  toggle.addEventListener('click', () => {
+    setLangToggles(toggle.dataset.lang === 'en' ? 'zh' : 'en');
+  });
+});
 
 // Capsule header — expands from a floating pill to a full-width bar once
 // the second section (Numbers Tell the Story v2) reaches the header, not on
@@ -68,6 +77,45 @@ if (navEl && navTriggerSection) {
       navEl.classList.toggle('nav--on-light', overLight);
       navTicking = false;
     });
+  });
+}
+
+// Mobile nav menu — burger toggles #nav-mobile-menu open/closed (see the
+// CSS comment on .nav__mobile-menu for why it's a sibling of .nav__capsule,
+// not nested inside it). Only ever matters below 720px; resizing past that
+// while open force-closes it so a tablet rotation etc. can't leave the
+// dropdown state stuck showing (display:none) behind the now-restored
+// desktop capsule row.
+const navBurger = document.getElementById('nav-burger');
+const navMobileMenu = document.getElementById('nav-mobile-menu');
+if (navEl && navBurger && navMobileMenu) {
+  const mobileMq = window.matchMedia('(max-width: 720px)');
+  function closeMobileMenu() {
+    navEl.classList.remove('is-menu-open');
+    navBurger.classList.remove('is-open');
+    navBurger.setAttribute('aria-expanded', 'false');
+  }
+  navBurger.addEventListener('click', () => {
+    const open = navEl.classList.toggle('is-menu-open');
+    navBurger.classList.toggle('is-open', open);
+    navBurger.setAttribute('aria-expanded', String(open));
+  });
+  // Tapping any link/button inside the menu should close it too — without
+  // this, an in-page anchor (Get in Touch → #contact) leaves the dropdown
+  // sitting open over whatever it just scrolled to.
+  navMobileMenu.addEventListener('click', (e) => {
+    if (e.target.closest('a, button')) closeMobileMenu();
+  });
+  document.addEventListener('click', (e) => {
+    if (!navEl.classList.contains('is-menu-open')) return;
+    if (navEl.contains(e.target)) return;
+    closeMobileMenu();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMobileMenu();
+  });
+  mobileMq.addEventListener('change', (e) => {
+    if (!e.matches) closeMobileMenu();
   });
 }
 
@@ -1004,6 +1052,73 @@ function initNumbersStage(onSeamComplete) {
   });
 }
 
+// Mobile's version of the same "What We Do" heading→line→tag entrance
+// desktop plays as part of the scroll-jack sequence below (masked heading
+// reveal, line grow, then the tag's characters rising in — see the
+// .wwd2-pin.is-armed(.is-revealing) rules in styles.css). Those rules are
+// plain class-triggered CSS `animation`s, not scroll-scrubbed, so the same
+// choreography works fine fired once from an IntersectionObserver instead
+// of from a local scroll fraction — mobile has no scroll-jack pin to read
+// one from. Kept as its own small, self-contained function (rather than
+// reusing initWwdSequence()'s internals) so it doesn't depend on any of
+// that function's later const declarations, which mobile's early return
+// below never reaches.
+function initWwdMobileEntrance(pin, titleGroup, tag, tagWrap) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; // CSS's own reduced-motion block already keeps everything visible without .is-armed
+  if (!pin || !titleGroup || !tag) return;
+
+  const TAG_TEXT = 'to Connect.';
+  const CHAR_STAGGER = 0.03;
+
+  function renderChars(text, animate) {
+    tag.textContent = '';
+    tag.setAttribute('aria-label', text);
+    [...text].forEach((ch, i) => {
+      const span = document.createElement('span');
+      span.className = 'connect__char';
+      span.setAttribute('aria-hidden', 'true');
+      span.textContent = ch === ' ' ? ' ' : ch;
+      if (animate) {
+        span.style.setProperty('--char-delay', `${i * CHAR_STAGGER}s`);
+        span.classList.add('is-in');
+      }
+      tag.appendChild(span);
+    });
+  }
+
+  // Static safe default: real text present immediately, no animation yet —
+  // same as desktop's own pre-arm render.
+  renderChars(TAG_TEXT, false);
+  pin.classList.add('is-armed');
+
+  let revealed = false;
+  function reveal() {
+    if (revealed) return;
+    revealed = true;
+    pin.classList.add('is-revealing');
+    // Same 1100ms as desktop's triggerReveal() — timed to land right after
+    // the heading (0.6s) + line (0.6s delay, 0.5s) finish.
+    setTimeout(() => {
+      tag.style.opacity = '1';
+      renderChars(TAG_TEXT, true);
+    }, 1100);
+  }
+
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          reveal();
+          io.disconnect();
+        }
+      });
+    }, { threshold: 0.3 });
+    io.observe(titleGroup);
+  } else {
+    reveal();
+  }
+}
+
 // ── What We Do: one continuous experience under a single heading ────────
 // The title card (heading + line + rotating blue tag, Figma node 273:1080)
 // and the six feature cards (Figma node 273:1136) are ONE experience, not
@@ -1041,13 +1156,39 @@ function initWwdSequence() {
   const track = document.getElementById('wwd2-track');
   const cards = track ? [...track.children] : [];
   if (!pin || !sticky || !titleGroup || !tag || !viewport || !track || !cards.length) return;
+  // Mobile gets a plain, normal-flow stacked layout instead (see the
+  // .wwd2-* rules inside @media (max-width:720px) in styles.css) — no
+  // horizontal scroll-jack, no pinning, no card slide-in. Returning here
+  // before .is-armed (or anything else) ever gets added means every
+  // element (other than the heading/line/tag, handed off below) just
+  // renders at its own safe-default CSS state: cards plain and fully
+  // visible, .wwd2-pin left at height:auto.
+  //
+  // initNumbersStage() still has to run on this early-return path too — it
+  // owns the shared topo canvas's per-frame background flip (see its own
+  // comment above, and the one further down by its real call: skipping this
+  // call entirely is a known failure mode that already happened once).
+  // Without it the canvas never gets a flat color painted onto it at all and
+  // falls back to .topo-bg's own static CSS gradient — a visible gradient
+  // showing through wherever the canvas is behind content next, including
+  // right behind these WWD cards on mobile.
+  if (window.matchMedia('(max-width: 720px)').matches) {
+    initNumbersStage();
+    // The heading/line/tag entrance is the one piece of this sequence
+    // mobile keeps — see initWwdMobileEntrance() above for why it's a
+    // separate, IntersectionObserver-driven function instead of reusing
+    // the scroll-jack code below.
+    initWwdMobileEntrance(pin, titleGroup, tag, tagWrap);
+    return;
+  }
 
   const TAG_TEXT = 'to Connect.';
   const CHAR_STAGGER = 0.03;
 
   const ENTRANCE_HOLD_SCROLL = 420; // heading → line → tag fade in, all centered, THEN a bit of dwell before tag exit is allowed to start (was 300 — too easy to blow straight past "to Connect." on a fast scroll before it even registered)
   const REVEAL_START_SCROLL = 30; // wwd2-pin's own scroll must have started (i.e. .wwd2-sticky is actually caught/pinned, titleGroup already at its centered offset) before the heading is allowed to start revealing — see the seamComplete/entranceTriggered gating in update() below
-  const TAG_EXIT_SCROLL = 180; // tag fades + lifts slightly, well before it nears the heading
+  const TAG_EXIT_SCROLL = 360; // tag fades + lifts slightly, well before it nears the heading (was 180 — too easy to blow straight through the whole fade on a fast scroll, barely giving "to Connect." time to register before it was gone)
+  const TAG_DWELL_MS = 1200; // real-time floor on top of TAG_EXIT_SCROLL — see tagRevealedAt below for why scroll distance alone still isn't enough on a fast scroll
   const REPOSITION_SCROLL = 280; // the (now tag-less) title group eases from centered up to top:120
   const CARD_STAGGER_SCROLL = 45; // each card's own *fade-in* starts this much later than the previous — position is never staggered, see below
   const CARD_PARK_SCROLL = 80; // quick eased (fast-to-slow) slide from cardStartX (off the right edge, see measure()) to CARD_PARK_X — small budget, feels fast
@@ -1177,6 +1318,32 @@ function initWwdSequence() {
   }
 
   let entranceTriggered = reduce;
+  // Separate from entranceTriggered on purpose: entranceTriggered flips
+  // true the instant the scroll condition is met, but the tag itself
+  // doesn't actually become visible until triggerReveal()'s own 1100ms
+  // real-time delay elapses (timed to land exactly when the heading/line
+  // CSS animations finish — see triggerReveal() below). A fast scroll can
+  // easily carry p past ENTRANCE_HOLD_SCROLL (and so make tagExitP > 0)
+  // well within that 1100ms window; the tag-exit block further down used
+  // to be gated on entranceTriggered alone, so it would start writing
+  // opacity/transform onto a tag that hadn't been revealed yet — flashing
+  // it partially visible (and already fading) before the line had even
+  // finished growing, then to fully transparent moments later. Gating that
+  // block on tagRevealed instead means it can't touch the tag at all until
+  // the real reveal has actually happened.
+  let tagRevealed = reduce;
+  // Timestamp (performance.now(), real time) of the moment tagRevealed
+  // flipped true — see TAG_DWELL_MS above and its use in update() below.
+  // On a fast scroll, tagExitP can already be well past TAG_EXIT_SCROLL
+  // (or the whole entrance even locked) by the instant the tag is first
+  // revealed, since that reveal is on its own 1100ms real-time clock,
+  // independent of scroll speed. Without a real-time floor, the very next
+  // frame's exit math would immediately overwrite the opacity:1 this just
+  // set — visually, "to Connect." never appears at all, just a flash of
+  // nothing. Gating the exit block on elapsed real time since reveal (not
+  // just tagRevealed's boolean) guarantees it stays fully visible for at
+  // least TAG_DWELL_MS no matter how fast scrolling continues underneath.
+  let tagRevealedAt = 0;
   // Numbers Tell the Story's dark-flip completes (see onSeamComplete below)
   // well before the user has actually scrolled wwd2-pin into its own sticky
   // hold — it's driven by #numbers-pin's own, earlier scroll range, not
@@ -1242,6 +1409,19 @@ function initWwdSequence() {
     setTimeout(() => {
       tag.style.opacity = '1';
       renderChars(TAG_TEXT, true);
+      tagRevealed = true;
+      tagRevealedAt = performance.now();
+      // update() is safe to call immediately here even if the user kept
+      // scrolling during this delay and tagExitP is already well past 0:
+      // the exit block below is gated on TAG_DWELL_MS having elapsed since
+      // tagRevealedAt, which is 0ms ago right now, so it can't touch
+      // opacity yet — this call is a no-op for the tag specifically (it
+      // still needs to run for everything else update() drives, like
+      // repoT/card positions, in case scroll has already moved past those
+      // too). The real resync for the tag itself happens in the second
+      // setTimeout below, once the dwell floor has actually passed.
+      update();
+      setTimeout(update, TAG_DWELL_MS);
     }, 1100);
   }
 
@@ -1273,7 +1453,8 @@ function initWwdSequence() {
         repoT = 1;
       }
 
-      if (entranceTriggered && (tagExitP > 0 || entranceLocked)) {
+      const tagDwellDone = tagRevealed && performance.now() - tagRevealedAt >= TAG_DWELL_MS;
+      if (tagDwellDone && (tagExitP > 0 || entranceLocked)) {
         // The tag's own entrance (.is-revealing .connect__tag, in
         // styles.css) is a `forwards`-filled CSS animation on these same
         // two properties — once played, its filled end state keeps
@@ -1733,6 +1914,15 @@ function initTestimonialsMarquee(trackSelector) {
   if (!track) return;
 
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // Mobile gets a plain, hand-scrollable row instead (see the
+  // @media (max-width:720px) rules on .client2__marquee/.client2__track in
+  // styles.css) — a continuous JS-driven transform fighting a finger
+  // actively dragging the same element would either fling it back into
+  // motion the instant the user lets go, or visibly stutter against the
+  // touch, neither of which reads as "scroll this yourself." Returning
+  // here before ever touching track.style.transform leaves the CSS
+  // override (transform:none) as the only thing positioning it.
+  if (window.matchMedia('(max-width: 720px)').matches) return;
 
   const BASE_DURATION = 75; // seconds per loop at rest, matches the original pace
   const SCROLL_BOOST = 2.2; // how strongly scroll velocity influences speed
@@ -2054,10 +2244,82 @@ function initCta2Transition() {
   pin.classList.add('is-armed');
 
   let ticking = false;
+  const SETTLE_P = FADE_SCROLL + HOLD_SCROLL + SHRINK_SCROLL;
+  // The whole cover→hold→shrink sequence is meant to play once, snap to
+  // its finished look, and then hand everything back to plain, static
+  // document flow for good — not stay scroll-jacked forever in either
+  // direction. teardown() (below) does that one-time handoff the instant
+  // real scroll first carries p up to SETTLE_P; once tornDown is true,
+  // update() never runs its own logic again (see the guard immediately
+  // below), so from then on .cta2/.cta2__card/.cta2__backdrop/Client2 are
+  // all just native, scrolling normally with the rest of the page (Footer
+  // included) — no more JS-driven sticky/fixed positioning to get out of
+  // sync with itself no matter how the user scrolls afterward.
+  let tornDown = false;
+
+  function teardown() {
+    if (tornDown) return;
+    tornDown = true;
+
+    // Snap to the exact same settled visual this always rendered once
+    // shrinkT reached 1 — clearing every inline override lets each
+    // element's own resting CSS take over, pixel for pixel, one last time.
+    card.style.position = '';
+    card.style.top = '';
+    card.style.left = '';
+    card.style.width = '';
+    card.style.maxWidth = '';
+    card.style.height = '';
+    card.style.transform = '';
+    card.style.transformOrigin = '';
+    card.style.borderRadius = '';
+    card.style.pointerEvents = '';
+
+    backdrop.style.position = '';
+    backdrop.style.top = '';
+    backdrop.style.left = '';
+    backdrop.style.width = '';
+    backdrop.style.height = '';
+    backdrop.style.transform = '';
+    backdrop.style.transformOrigin = '';
+    backdrop.style.pointerEvents = '';
+    if (backdropFill) backdropFill.style.display = 'none';
+
+    // Drops .cta2 out of position:sticky for good (see the CSS rule this
+    // class triggers, next to .cta2-pin in styles.css) — from here it just
+    // scrolls away in plain normal flow together with Footer below it,
+    // instead of staying pinned to the viewport while Footer scrolls in
+    // from underneath it. Clearing the scroll-jack margin/height along
+    // with it collapses .cta2-pin back down to .cta2's own natural
+    // (now auto) height — no more dead scroll-jack space to sit in either.
+    pin.classList.add('is-torn-down');
+    pin.style.marginTop = '';
+    pin.style.height = '';
+
+    // .cta2__content has no `top` of its own in CSS (see its rule) — it's
+    // always been JS-driven, in viewport-relative px, on the assumption
+    // .cta2 fills the whole viewport while pinned. Once .cta2 is a normal,
+    // auto-sized block instead, that assumption no longer holds — read the
+    // card's own now-static offset within .cta2 (its containing block,
+    // now that .cta2 is position:relative rather than sticky) and use
+    // that instead, so content still lines up with the card's top edge
+    // exactly like it always has.
+    content.style.top = `${card.offsetTop}px`;
+
+    // Client2 is done moving for good — plain normal flow, right where it
+    // naturally sits in the document, forever, regardless of any further
+    // scrolling in either direction.
+    releaseClient2();
+  }
 
   function update() {
+    if (tornDown) return;
     const pRaw = -pin.getBoundingClientRect().top;
     const p = Math.max(0, pRaw);
+    if (p >= SETTLE_P) {
+      teardown();
+      return;
+    }
 
     // "Cover" sub-phase (same FADE_SCROLL budget, repurposed): instead of
     // fading in opacity while already full-bleed, the card+backdrop slide
@@ -2110,6 +2372,11 @@ function initCta2Transition() {
     // pixels, no scale compensation.
     content.style.top = `${lerp(centeredContentTop, finalContentTop, slideEased)}px`;
 
+    // Only assigned inside the mid-shrink branch below, but read afterward
+    // by the Client2/Footer handoff at the bottom of this function — hoisted
+    // here so that read isn't a scoping error.
+    let bCurY = 0;
+
     if (shrinkT <= 0) {
       // Covering (or holding, once fully covered) — pinned to the
       // viewport, full-bleed size, no scale yet. The only motion here is
@@ -2153,82 +2420,6 @@ function initCta2Transition() {
       backdrop.style.transform = `translateY(${coverOffset}px)`;
       backdrop.style.pointerEvents = 'none';
       if (backdropFill) backdropFill.style.display = 'none';
-
-      // Client2 freezes in place (bottom edge held at a constant
-      // window.innerHeight) for as long as the pin is engaged at all —
-      // pulled into position:fixed the instant p crosses 0 (pRaw > 0),
-      // seamless with its natural-flow position at that exact instant
-      // since the pin's negative margin above (OVERLAP =
-      // window.innerHeight) makes the two agree pixel for pixel right at
-      // the handoff.
-      // Deliberately NOT tracking coverOffset here (an earlier version
-      // did): gluing Client2's edge to the incoming card's own moving
-      // edge made both appear to travel together, which reads as "the
-      // page is just scrolling normally" rather than "a stationary
-      // Client2 is being covered by an incoming layer" — there's no
-      // motion contrast to see. Holding Client2 still while only the
-      // card/backdrop move (via coverOffset) is what actually sells the
-      // cover, the same way .hero stays motionless while .story-wrap
-      // slides up over it. Below p=0, it's released back to plain
-      // normal-flow scrolling.
-      if (pRaw > 0) {
-        showClient2Flush(window.innerHeight);
-      } else {
-        releaseClient2();
-      }
-    } else if (shrinkT >= 1) {
-      // Settled — clear every inline override so the card's own CSS
-      // (position:relative, normal flex-laid-out size) takes over exactly
-      // as it renders at rest, pixel for pixel.
-      card.style.position = '';
-      card.style.top = '';
-      card.style.left = '';
-      card.style.width = '';
-      card.style.maxWidth = '';
-      card.style.height = '';
-      card.style.transform = '';
-      card.style.transformOrigin = '';
-      card.style.borderRadius = '';
-      card.style.pointerEvents = '';
-
-      // Settled — same idea as the card: clear every override so
-      // .cta2__backdrop's own CSS (a fixed 600px-tall compact strip, not
-      // the full 100vh) takes over exactly, pixel for pixel.
-      backdrop.style.position = '';
-      backdrop.style.top = '';
-      backdrop.style.left = '';
-      backdrop.style.width = '';
-      backdrop.style.height = '';
-      backdrop.style.transform = '';
-      backdrop.style.transformOrigin = '';
-      backdrop.style.pointerEvents = '';
-      if (backdropFill) backdropFill.style.display = 'none';
-
-      // Settled — Client2's bottom edge glues to the backdrop's own real
-      // (CSS, not inline) resting top, which is exactly backdropFinalTop
-      // by construction (see measureFinalRect). This has to keep holding
-      // Client2 there for a while after .cta2 itself starts scrolling
-      // away, too, not just up until it un-sticks: .cta2 is still a
-      // 100vh-tall box with only a compact backdrop anchored to its
-      // bottom, so for the whole stretch it takes to scroll fully out of
-      // view, the space above the backdrop (previously backfilled by
-      // Client2) would otherwise flash bare page background right as the
-      // Footer is still rising into view from below — not gone, just
-      // exposed again for that stretch.
-      // The condition that actually matters is whether the Footer has
-      // risen far enough on its own (plain normal-flow scroll, no JS) to
-      // reach Client2's own frozen bottom edge — once it has, Footer's own
-      // content picks up the coverage with no seam, and Client2 can let
-      // go. Comparing against .cta2's live position instead (e.g. "is it
-      // still stuck at top:0") releases far too early: .cta2 keeps a
-      // visible presence well after it un-sticks, and Client2 needs to
-      // keep backfilling behind it for that entire remaining stretch.
-      const footerHasCaughtUp = footer && footer.getBoundingClientRect().top <= backdropFinalTop;
-      if (footerHasCaughtUp) {
-        releaseClient2();
-      } else {
-        showClient2Flush(backdropFinalTop);
-      }
     } else {
       // Card's own DOM size stays fixed at the full-bleed 100vw/100vh the
       // whole time — only `transform` changes — so silk-background.js's
@@ -2288,7 +2479,7 @@ function initCta2Transition() {
       const bCurH = lerp(window.innerHeight, backdropFinalHeight, scaleEased);
       const bCurSy = bCurH / window.innerHeight;
       const bCenteredTop = (window.innerHeight - bCurH) / 2;
-      const bCurY = lerp(bCenteredTop, backdropFinalTop, slideEased) + coverOffset; // +coverOffset a no-op here, same as the card
+      bCurY = lerp(bCenteredTop, backdropFinalTop, slideEased) + coverOffset; // +coverOffset a no-op here, same as the card
       backdrop.style.position = 'fixed';
       backdrop.style.top = '0px';
       backdrop.style.left = '0px';
@@ -2320,10 +2511,37 @@ function initCta2Transition() {
           backdropFill.style.display = 'none';
         }
       }
+    }
 
-      // Client2 tracks the backdrop's own current top edge (bCurY) in
-      // real time — glued flush to it the whole way down, not just at
-      // the start/end.
+    // Client2 — this whole function only ever runs before teardown() has
+    // fired (see the guard at the top of update()), so this is always the
+    // first, forward pass through cover/hold/shrink, never a reverse one:
+    //   shrinkT<=0 — cover/hold: Client2 freezes in place (bottom edge held
+    //     at a constant window.innerHeight) for as long as the pin is
+    //     engaged at all — pulled into position:fixed the instant p crosses
+    //     0 (pRaw > 0), seamless with its natural-flow position at that
+    //     exact instant since the pin's negative margin above (OVERLAP =
+    //     window.innerHeight) makes the two agree pixel for pixel right at
+    //     the handoff. Below p=0, it's released back to plain normal-flow
+    //     scrolling. Deliberately NOT tracking coverOffset here (an earlier
+    //     version did): gluing Client2's edge to the incoming card's own
+    //     moving edge made both appear to travel together, which reads as
+    //     "the page is just scrolling normally" rather than "a stationary
+    //     Client2 is being covered by an incoming layer" — there's no
+    //     motion contrast to see. Holding Client2 still while only the
+    //     card/backdrop move (via coverOffset) is what actually sells the
+    //     cover, the same way .hero stays motionless while .story-wrap
+    //     slides up over it.
+    //   0 < shrinkT < 1 — mid-shrink: Client2 tracks the backdrop's own
+    //     current top edge (bCurY) in real time, glued flush to it the
+    //     whole way down, not just at the start/end.
+    if (shrinkT <= 0) {
+      if (pRaw > 0) {
+        showClient2Flush(window.innerHeight);
+      } else {
+        releaseClient2();
+      }
+    } else {
       showClient2Flush(bCurY);
     }
 
@@ -2344,6 +2562,10 @@ function initCta2Transition() {
   );
 
   window.addEventListener('resize', () => {
+    // Once torn down, measure() would re-apply the scroll-jack
+    // margin/height this section no longer uses — skip it entirely so a
+    // resize (rotating a tablet, etc.) can't accidentally re-pin it.
+    if (tornDown) return;
     measure();
     update();
   });

@@ -126,6 +126,36 @@ finish review, the verdict, and DESIGN.md.
       </button>
       <a href="#contact" class="nav__cta">Get in Touch</a>
     </div>
+    <!-- Mobile only (see @media max-width:720px) — .nav__links above is
+         hidden entirely below that breakpoint and this replaces it. Sits
+         inside .nav__capsule (small, doesn't overflow the pill) so it gets
+         the same glass-header treatment; the dropdown it opens is a
+         sibling of .nav__capsule instead (see #nav-mobile-menu below),
+         since .nav__capsule's own overflow:hidden (needed for the glass
+         blur layers) would otherwise clip a dropdown positioned inside it. -->
+    <button type="button" class="nav__burger" id="nav-burger" aria-label="Open menu" aria-expanded="false" aria-controls="nav-mobile-menu">
+      <span class="nav__burger-line"></span>
+      <span class="nav__burger-line"></span>
+      <span class="nav__burger-line"></span>
+    </button>
+  </div>
+  <!-- Mobile dropdown — reuses .nav__link/.nav__lang/.nav__cta for
+       consistent colors/typography (including the light-band swap via
+       .nav--on-light) with its own layout scoped under
+       .nav__mobile-menu in styles.css. #lang-toggle-mobile duplicates
+       #lang-toggle (a real second control, not just a visual copy — two
+       toggles need two ids); main.js wires both from one shared
+       querySelectorAll('.nav__lang') instead of a single getElementById,
+       and keeps them in sync. -->
+  <div class="nav__mobile-menu" id="nav-mobile-menu">
+    <a href="about.html" class="nav__link">About</a>
+    <a href="work.html" class="nav__link">Work</a>
+    <button type="button" class="nav__lang" id="lang-toggle-mobile" aria-label="Switch language" data-lang="en">
+      <span class="nav__lang-option nav__lang-option--active" data-value="en">En</span>
+      <span class="nav__lang-divider">/</span>
+      <span class="nav__lang-option" data-value="zh">中</span>
+    </button>
+    <a href="#contact" class="nav__cta">Get in Touch</a>
   </div>
 </nav>
 
@@ -586,7 +616,7 @@ finish review, the verdict, and DESIGN.md.
 .raexp-mvideo{display:none}
 
 @media (max-width:1024px){
-  .raexp-head{padding:96px 24px 48px;flex-direction:column;align-items:flex-start;gap:20px}
+  .raexp-head{padding:140px 24px 48px;flex-direction:column;align-items:flex-start;gap:20px}
   .raexp-lede{font-size:16px;line-height:1.45;max-width:100%}
   .raexp-title{white-space:normal}
 

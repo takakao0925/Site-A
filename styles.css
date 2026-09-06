@@ -409,7 +409,9 @@ a {
 /* ── Responsive ──────────────────────────────────────────────────────── */
 
 @media (max-width: 720px) {
-  .nav__link {
+  /* The whole capsule row (About/Work/lang/CTA) collapses into
+     #nav-mobile-menu instead — see .nav__burger/.nav__mobile-menu below. */
+  .nav__links {
     display: none;
   }
 
@@ -422,15 +424,6 @@ a {
     padding: 0 18px;
   }
 
-  .nav__links {
-    gap: 14px;
-  }
-
-  .nav__cta {
-    padding: 8px 14px;
-    white-space: nowrap;
-  }
-
   .hero__content {
     max-width: 100%;
   }
@@ -441,6 +434,152 @@ a {
       linear-gradient(180deg, rgba(5, 7, 12, 0.4) 0%, rgba(5, 7, 12, 0.1) 20%, rgba(5, 7, 12, 0.35) 60%, rgba(5, 7, 12, 0.95) 100%);
   }
 
+}
+
+/* ── Mobile nav menu (burger + dropdown) ─────────────────────────────────
+   .nav__burger only ever exists visually below 720px (display:none above
+   it) — main.js's toggle logic is likewise gated so it's a no-op on
+   desktop. The dropdown (#nav-mobile-menu) is a sibling of .nav__capsule,
+   not a child — .nav__capsule's own overflow:hidden (required for the
+   glass-blur layers to stay pill-shaped) would otherwise clip it. */
+.nav__burger {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .nav__burger {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    z-index: 1; /* above the glass layers, same stacking as .nav__logo/.nav__links */
+  }
+
+  .nav__burger-line {
+    width: 20px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--text);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease, background 0.2s ease;
+  }
+
+  .nav--on-light .nav__burger-line {
+    background: #262829;
+  }
+
+  /* Hamburger → X, same three lines re-transformed rather than swapped for
+     separate icons — middle line fades out, outer two rotate to cross. */
+  .nav__burger.is-open .nav__burger-line:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+  .nav__burger.is-open .nav__burger-line:nth-child(2) {
+    opacity: 0;
+  }
+  .nav__burger.is-open .nav__burger-line:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nav__burger-line {
+      transition: none;
+    }
+  }
+}
+
+.nav__mobile-menu {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  /* Safe-by-default: no JS-gated class needed to *show* this — it's always
+     in the DOM at this breakpoint, just visually collapsed (opacity/
+     visibility, not display:none) so a JS failure leaves it reachable
+     (still in the accessibility tree, just needs manual scroll-to) rather
+     than truly gone. main.js only ever toggles .nav.is-menu-open. */
+  .nav__mobile-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: absolute;
+    top: calc(100% + 10px);
+    left: clamp(24px, 5vw, 64px);
+    right: clamp(24px, 5vw, 64px);
+    background: var(--bg-elevated);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 10px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s linear 0.25s;
+  }
+
+  .nav.is-menu-open .nav__mobile-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+
+  .nav__mobile-menu .nav__link {
+    display: block;
+    padding: 14px 12px;
+    border-radius: 12px;
+  }
+
+  .nav__mobile-menu .nav__link:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .nav__mobile-menu .nav__lang {
+    padding: 14px 12px;
+  }
+
+  .nav__mobile-menu .nav__cta {
+    margin-top: 4px;
+    text-align: center;
+    justify-content: center;
+    border-radius: 10px; /* mobile-only override — desktop's .nav__cta stays a full pill (border-radius:999px) */
+  }
+
+  /* .nav--on-light (main.js, toggled while scrolled over light sections)
+     darkens .nav__link/.nav__lang text so it reads against the light band
+     behind the fixed capsule — irrelevant here, since .nav__mobile-menu has
+     its own fixed dark background (--bg-elevated) regardless of what
+     section sits behind the rest of the header. Force the dropdown's own
+     text back to its plain (light-on-dark) colors so it doesn't go dark
+     app-on-dark unreadable just because the page happens to be scrolled
+     over a light section while the menu is open. */
+  .nav--on-light .nav__mobile-menu .nav__link,
+  .nav--on-light .nav__mobile-menu .nav__lang-option,
+  .nav--on-light .nav__mobile-menu .nav__lang-divider,
+  .nav--on-light .nav__mobile-menu .nav__lang:hover .nav__lang-option {
+    color: var(--text);
+  }
+
+  .nav--on-light .nav__mobile-menu .nav__link:hover {
+    color: #55caea;
+  }
+
+  .nav--on-light .nav__mobile-menu .nav__lang-option--active,
+  .nav--on-light .nav__mobile-menu .nav__lang:hover .nav__lang-option--active {
+    color: #55caea;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .nav__mobile-menu {
+      transition: none;
+    }
+  }
 }
 
 /* ── Shared section scaffolding ─────────────────────────────────────── */
@@ -729,13 +868,61 @@ a {
 
 @media (max-width: 720px) {
   .client2__head {
-    justify-content: center;
-    text-align: center;
+    justify-content: flex-start;
+    text-align: left;
   }
+
   .client2__heading {
     white-space: normal;
+    font-size: 32px;
   }
+
+  /* Restores the decorative "Ahead" script instead of hiding it outright —
+     the desktop left/top offsets above are tuned for a single-line
+     "Trusted by Teams That Think[Ahead]" heading (white-space:nowrap);
+     once the heading wraps to two lines at mobile sizes ("Trusted by
+     Teams That" / "Think[Ahead]"), those offsets no longer land anywhere
+     near "Think" — these replace them for the two-line layout instead,
+     and shrink the asset itself so it doesn't overrun the narrower
+     viewport. */
   .client2__ahead {
+    left: 78px;
+    top: 20px;
+    width: 200px;
+  }
+
+  /* Top-to-bottom instead of wrapping 2-then-1 (same treatment as Numbers
+     Tell the Story's stats, see that section's own mobile rule). */
+  .client2__laurels {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+  }
+
+  /* Testimonial quotes: hand-scrollable on mobile instead of the passive,
+     scroll-speed-driven marquee (initTestimonialsMarquee bails out under
+     this same breakpoint — see main.js) — plain native horizontal scroll
+     with momentum, scrollbar hidden cosmetically. .client2__track's own
+     static transform:translateX(-50%) (there so the *desktop* marquee's
+     doubled .client2__set starts mid-loop, seamless before JS takes over)
+     would instead just hide the first half of the content off-screen to
+     the left here, so both that and the now-redundant second .client2__set
+     (only ever needed for the auto-scroll's infinite loop) are cleared. */
+  .client2__marquee {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .client2__marquee::-webkit-scrollbar {
+    display: none;
+  }
+
+  .client2__track {
+    transform: none;
+  }
+
+  .client2__set:nth-of-type(2) {
     display: none;
   }
 }
@@ -882,6 +1069,44 @@ a {
   font-weight: 500;
   font-size: clamp(16px, 1.8vw, 24px);
   color: #262829;
+}
+
+@media (max-width: 720px) {
+  /* .numtell__title-cursive's -51px overlap (see its own comment) is a
+     fixed px value calibrated for the asset's full 459px desktop width —
+     at this breakpoint the SVG itself is already scaled down to 60vw
+     (~234px at 390px wide, roughly half), so that same -51px overlap ends
+     up proportionally much taller than intended and swallows most of
+     "Tell the Story" underneath it instead of just its top edge. -18px
+     here is sized for the SVG's own mobile height (its 459:115 aspect
+     ratio puts a 60vw-wide render at roughly 59px tall), so only the top
+     ~1/3 of "Tell the Story" (font-size clamp floor 24px, ~30px line
+     height) sits behind it. */
+  .numtell__title-cursive {
+    margin-bottom: -18px;
+  }
+
+  /* Three stats top-to-bottom (was wrapping 2-then-1 via .numtell__stats'
+     own flex-wrap) and bigger — Figma's own desktop-only clamp() ceiling
+     (100px/24px) never gets anywhere near mobile viewport widths, so this
+     raises the mobile-specific floor directly instead. */
+  .numtell__stats {
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+  }
+
+  .numtell__stat {
+    align-items: center;
+  }
+
+  .numtell__value {
+    font-size: 64px;
+  }
+
+  .numtell__label {
+    font-size: 20px;
+  }
 }
 
 /* Two decorative sphere images, shared component — originally built for the
@@ -1440,6 +1665,135 @@ a {
   }
 }
 
+/* ── What We Do: mobile stacking (Figma node 293:4147) ──────────────────
+   Desktop's horizontal scroll-jack track + text-over-image cards become a
+   plain vertical stack of rows, each row itself a horizontal split — text
+   card on the left, image on the right, a 2px blue divider between —
+   matching the Figma mobile layout exactly. initWwdSequence() (main.js)
+   already bails out under this same breakpoint before touching anything,
+   so .wwd2-pin/.wwd2-sticky never get JS-driven heights/position:sticky
+   here — these rules are the only thing controlling layout on mobile. */
+@media (max-width: 720px) {
+  .wwd2-sticky {
+    position: static;
+    height: auto;
+    overflow: visible;
+    padding-top: clamp(64px, 14vw, 120px);
+    gap: 32px;
+  }
+
+  /* "to Connect." hidden on mobile for now — heading + line still get their
+     entrance via initWwdMobileEntrance() (main.js), which still runs and
+     still arms/reveals the tag underneath this; it's just not shown. */
+  .wwd2-tag-wrap {
+    display: none;
+  }
+
+  .wwd2-cards-viewport {
+    overflow: visible;
+    clip-path: none;
+  }
+
+  .wwd2-track {
+    flex-direction: column;
+    width: 100%;
+    height: auto;
+    padding: 0 clamp(24px, 6vw, 64px);
+    gap: 20px;
+  }
+
+  .wwd2-card {
+    flex: none;
+    width: 100%;
+    height: 227px;
+    max-height: none;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: flex-start;
+    /* Figma's mobile mock (node 293:4147) keeps a consistent 20px gap
+       between the text card and the image on every row — was missing
+       entirely here, leaving the two touching with only the 2px blue
+       .wwd2-card__bar between them. */
+    gap: 20px;
+  }
+
+  /* Desktop staggers each card's text-block height as a % of a tall,
+     variable card (see the nth-child rule above) — irrelevant once the
+     card itself is a fixed 227px row, so let the text block just fill it. */
+  .wwd2-card:nth-child(n) .wwd2-card__text {
+    min-height: 0;
+    height: 100%;
+  }
+
+  /* Per-row width, not one fixed proportion: Figma's mobile mock (node
+     293:4147) actually varies the text card's own share of the row —
+     280/373/327/280/412/335px out of a 660px-wide frame, i.e. roughly
+     42/56/50/42/62/51% — rather than a uniform split. A single fixed
+     percentage (45%, tried first) reads as too narrow and too regimented
+     next to Figma's own rhythm; matching its real per-row ratios instead
+     (against our six real cards, in the same order as Figma's six rows)
+     is what actually fixes that. */
+  .wwd2-card:nth-child(1) .wwd2-card__text { flex: 0 0 42%; }
+  .wwd2-card:nth-child(2) .wwd2-card__text { flex: 0 0 56%; }
+  .wwd2-card:nth-child(3) .wwd2-card__text { flex: 0 0 50%; }
+  .wwd2-card:nth-child(4) .wwd2-card__text { flex: 0 0 42%; }
+  .wwd2-card:nth-child(5) .wwd2-card__text { flex: 0 0 62%; }
+  .wwd2-card:nth-child(6) .wwd2-card__text { flex: 0 0 51%; }
+
+  .wwd2-card__text {
+    flex-direction: row;
+    width: auto;
+  }
+
+  .wwd2-card__title {
+    font-size: 20px;
+    line-height: 24px;
+  }
+
+  /* Figma bottom-anchors the title/desc within the row (justify-end) —
+     desktop leaves .wwd2-card__body at its flex-start default since the
+     card's own extra height there gets absorbed above the text block
+     instead (see .wwd2-card's own justify-content:flex-end + the media
+     box's flex:1 1 auto). */
+  .wwd2-card__body {
+    border-right: none;
+    justify-content: flex-end;
+  }
+
+  /* The divider was a horizontal rule under the text on desktop; here it's
+     a vertical rule between the text and the image instead. */
+  .wwd2-card__bar {
+    width: 2px;
+    height: 100%;
+  }
+
+  .wwd2-card__media {
+    height: 100%;
+    margin-top: 0;
+    border: none; /* Figma's mobile Image Container has no border, just clips */
+  }
+
+  /* Hover-lift is mouse-only (initWwdCardHover/initWwdCursor already both
+     bail out under (hover: hover)), but the escape-past-the-column
+     transform it drives would still look wrong if anything ever toggled
+     .is-active-hover here — belt and suspenders. */
+  .wwd2-card.is-active-hover .wwd2-card__text {
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* initWwdMobileEntrance() (main.js) adds .is-armed to #wwd2 too — it's
+     what the heading/tag entrance further up this file keys off — but
+     .wwd2-pin.is-armed .wwd2-card above (desktop's "wait offscreen right
+     until scrolled into place" state) isn't relevant here: mobile cards
+     have no slide-in of their own and must just stay visible, exactly like
+     the prefers-reduced-motion override for the same rule. */
+  .wwd2-pin.is-armed .wwd2-card {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ── Contact / Get in Touch ─────────────────────────────────────────── */
 
 /* ── Contact (Figma node 226:2954) ───────────────────────────────────────
@@ -1559,6 +1913,20 @@ a {
   /* No background of its own — that's .cta2__backdrop now (see below),
      kept as a separate element specifically so it can shrink in sync with
      .cta2__card instead of staying a static 100vh block. */
+}
+
+/* Once the cover→hold→shrink sequence has played through and
+   teardown() (initCta2Transition() in main.js) has snapped everything to
+   its settled inline styles, this class takes .cta2 out of position:sticky
+   for good — position:relative still establishes a containing block for
+   .cta2__content's position:absolute (unlike position:static, which would
+   break it), but no longer pins to the viewport, and height:auto collapses
+   it down to just its own settled content instead of a dead 100vh box.
+   From here .cta2 (and Footer right after it) just scroll away together
+   in plain normal flow, in either direction, with no more JS involved. */
+.cta2-pin.is-torn-down .cta2 {
+  position: relative;
+  height: auto;
 }
 
 /* Blue backdrop, behind .cta2__card and .cta2__content. This CSS is the
