@@ -1102,17 +1102,20 @@ function initWwdMobileEntrance(pin, titleGroup, tag, tagWrap, onHeadingDone) {
     if (revealed) return;
     revealed = true;
     pin.classList.add('is-revealing');
-    // Same 1100ms as desktop's triggerReveal() — timed to land right after
-    // the heading (0.6s) + line (0.6s delay, 0.5s) finish. onHeadingDone
-    // (initWwdMobileCards' own flush, wired up at the call site below)
-    // fires here too — the cards' own entrance isn't allowed to actually
-    // show anything until the heading+line animation this section owns has
-    // genuinely finished playing.
+    // 650ms — faster than desktop's own 1100ms, timed to land right after
+    // the mobile-only heading (0.35s) + line (0.35s delay, 0.3s) durations
+    // in styles.css's @media (max-width:720px) block, not desktop's 0.6s/
+    // 0.6s/0.5s. Mobile has no scroll-jack holding the page still while
+    // this plays, and cards are deliberately held back until it's done
+    // (onHeadingDone — initWwdMobileCards' own flush, wired up at the call
+    // site below) — so however long this takes is real dead time a user
+    // who's already scrolling can run straight into, unlike desktop where
+    // the scroll-jack itself provides the wait.
     setTimeout(() => {
       tag.style.opacity = '1';
       renderChars(TAG_TEXT, true);
       if (onHeadingDone) onHeadingDone();
-    }, 1100);
+    }, 650);
   }
 
   if ('IntersectionObserver' in window) {
