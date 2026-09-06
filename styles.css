@@ -27,21 +27,6 @@
 
 html {
   color-scheme: dark;
-  /* <html>, not <body>, is the element that actually scrolls the page —
-     overflow-x:hidden on body alone (below) only clips body's own content
-     against ITS OWN box, it doesn't stop the document's root-level
-     horizontal scroll/overflow from existing at all. Some deeply-nested
-     element occasionally renders a hair wider than the viewport (observed:
-     ~16px, right around when page content finishes loading in) — normally
-     harmless, since nothing is actually meant to be seen out there, but
-     .nav (position:fixed; left:0; right:0) computes its own width against
-     the *true* viewport-including-that-overflow, not against the visible,
-     scrollable-content width, so it rendered wider than the screen too —
-     reads as uneven left/right padding, worse once the header's expanded
-     "scrolled" state made that gap even more visible. This is the actual
-     fix, at the root — .nav (styles.css) has no changes of its own to
-     make, since it was already correctly written as left:0/right:0. */
-  overflow-x: hidden;
 }
 
 body {
@@ -1732,6 +1717,24 @@ a {
     height: auto;
     padding: 0 clamp(24px, 6vw, 64px);
     gap: 20px;
+    /* Each full-width .wwd2-card sits at translateX(40px) before its own
+       entrance (initWwdMobileCards() in main.js) — genuinely, not just
+       visually, 40px wider than the viewport at that moment, since a
+       transformed element's post-transform position counts toward the
+       page's real scrollable area. Left unclipped, that showed up as a
+       real ~40px (rounds to the ~16px actually observed, viewport-width
+       dependent) site-wide horizontal overflow the instant any card was
+       pending — not cosmetic: it grew window.innerWidth itself, which is
+       what .nav (position:fixed; left:0; right:0, no explicit width) and
+       every position:sticky element's own "room to stick" calculation
+       both read directly, so it corrupted unrelated layout everywhere on
+       the page, not just here. Clipping it locally, right at the level
+       the transform happens, fixes it without the site-wide fallout an
+       <html>-level overflow-x:hidden turned out to have (auto-flips
+       overflow-y to `auto`, which breaks position:sticky's containing-
+       block resolution across the whole page — reverted, see html's own
+       rule instead of this comment repeating why). */
+    overflow-x: hidden;
   }
 
   .wwd2-card {
